@@ -1,0 +1,7 @@
+This is a test file for sed commands
+The argument is important
+ARGUMENT in uppercase
+This line has no argument
+argument with lowercase
+Another line with argument
+No argument here

@@ -1,0 +1,6 @@
+Line 1 of week6_1.txt
+Line 2 of week6_1.txt
+Line 3 of week6_1.txt
+Line 4 of week6_1.txt
+Line 5 of week6_1.txt
+Line 6 of week6_1.txt

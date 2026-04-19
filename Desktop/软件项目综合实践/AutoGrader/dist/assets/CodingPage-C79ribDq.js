@@ -1,0 +1,71 @@
+import{d as ce,o as pe,M as ve,c as u,a as e,e as a,w as n,t as l,p as H,F as f,n as h,N as K,O as me,m as _e,h as m,y as Q,g as y,i,j as b,I as ge,q as d,P as fe,z as S,Q as ye,R as he,J as be,S as we,T as ke,v as V,U as Ce,V as xe,x as W,E as z,u as Se,_ as Ve}from"./index-z9-L3cb4.js";const ze={class:"coding-container"},Me={class:"coding-header"},Pe={class:"header-left"},Ee={class:"problem-title"},Oe={class:"title-text"},Re={class:"header-right"},$e={class:"coding-main"},Ie={class:"panel-tabs"},Le={class:"panel-content"},Te={key:0,class:"problem-description"},je={class:"description-header"},Ue={class:"problem-tags"},Be={class:"description-body"},De={class:"section"},Ne={class:"section"},Fe={class:"section"},Je={class:"section examples"},qe={class:"example-item"},He={class:"example-code"},Ke={class:"example-item"},Qe={class:"example-code"},We={class:"section constraints"},Xe={key:1,class:"testcases-panel"},Ae={class:"testcase-tabs"},Ge={class:"testcase-item"},Ye={class:"testcase-code"},Ze={class:"testcase-item"},es={class:"testcase-code"},ss={class:"editor-header"},ts={class:"editor-actions"},as={class:"editor-wrapper"},ls={class:"line-numbers"},ns=["placeholder"],os={class:"editor-footer"},is={class:"code-info"},us={class:"submit-actions"},ds={class:"history-list"},rs={class:"history-header"},cs={class:"history-time"},ps={class:"history-score"},vs={class:"history-info"},ms={key:0,class:"result-content"},_s={class:"result-header"},gs={class:"result-score"},fs={class:"score-num"},ys={class:"result-stats"},hs={class:"stat-item"},bs={class:"stat-value"},ws={class:"stat-item"},ks={class:"stat-value"},Cs={class:"stat-item"},xs={class:"stat-value"},Ss={class:"stat-item"},Vs={class:"stat-value"},zs={class:"result-cases"},Ms={class:"cases-list"},Ps={class:"case-header"},Es={class:"case-name"},Os={key:0,class:"case-details"},Rs={class:"case-row"},$s={class:"case-code"},Is={class:"case-row"},Ls={class:"case-code expected"},Ts={class:"case-row"},js={class:"case-code actual"},Us=ce({__name:"CodingPage",setup(Bs){const X=Se(),O=m(40),R=m(!1),$=m("description"),I=m(1),g=m("python"),c=m(""),M=m(!1),P=m(!1),C=m(!1),B=m(""),v=m(null),_=m({id:"Q001",title:"两数之和",difficulty:"简单",tags:["数组","哈希表"],description:"给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值 target 的那两个整数，并返回它们的数组下标。",inputFormat:"第一行输入两个整数 n 和 target，分别表示数组长度和目标值。第二行输入 n 个整数，表示数组元素。",outputFormat:"输出两个整数，表示两个数的下标（从0开始）。",examples:[{input:`4 9
+2 7 11 15`,output:"0 1"},{input:`3 6
+3 2 4`,output:"1 2"}],constraints:["2 <= nums.length <= 10^4","-10^9 <= nums[i] <= 10^9","-10^9 <= target <= 10^9","只会存在一个有效答案"]}),L=m([{id:1,input:`4 9
+2 7 11 15`,expectedOutput:"0 1"},{id:2,input:`3 6
+3 2 4`,expectedOutput:"1 2"},{id:3,input:`2 6
+3 3`,expectedOutput:"0 1"}]),D=m([{id:"S001",time:"2026-04-01 14:30",status:"passed",score:100,language:"Python",runtime:32},{id:"S002",time:"2026-04-01 14:25",status:"failed",score:66,language:"Python",runtime:28},{id:"S003",time:"2026-04-01 14:20",status:"failed",score:33,language:"Python",runtime:25}]),x={python:`def two_sum(nums, target):
+    # 在此处编写代码
+    pass
+
+# 读取输入
+n, target = map(int, input().split())
+nums = list(map(int, input().split()))
+
+# 调用函数并输出结果
+result = two_sum(nums, target)
+print(' '.join(map(str, result)))`,java:`import java.util.*;
+
+public class Main {
+    public static int[] twoSum(int[] nums, int target) {
+        // 在此处编写代码
+        return new int[]{0, 0};
+    }
+    
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int n = sc.nextInt();
+        int target = sc.nextInt();
+        int[] nums = new int[n];
+        for (int i = 0; i < n; i++) {
+            nums[i] = sc.nextInt();
+        }
+        
+        int[] result = twoSum(nums, target);
+        System.out.println(result[0] + " " + result[1]);
+    }
+}`,cpp:`#include <iostream>
+#include <vector>
+using namespace std;
+
+vector<int> twoSum(vector<int>& nums, int target) {
+    // 在此处编写代码
+    return {0, 0};
+}
+
+int main() {
+    int n, target;
+    cin >> n >> target;
+    vector<int> nums(n);
+    for (int i = 0; i < n; i++) {
+        cin >> nums[i];
+    }
+    
+    vector<int> result = twoSum(nums, target);
+    cout << result[0] << " " << result[1] << endl;
+    return 0;
+}`,javascript:`function twoSum(nums, target) {
+    // 在此处编写代码
+    return [0, 0];
+}
+
+// 读取输入
+const readline = require('readline');
+const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+rl.on('line', (line) => {
+    // 处理输入并输出结果
+});`},A=Q(()=>`请在此处编写 ${g.value} 代码...`),N=Q(()=>c.value.split(`
+`).length),G=o=>{switch(o){case"简单":return"success";case"中等":return"warning";case"困难":return"danger";default:return"warning"}},F=o=>o>=90?"excellent":o>=70?"good":o>=60?"average":"poor",Y=o=>{(!c.value||c.value===x[g.value])&&(c.value=x[o]),g.value=o,z.success(`已切换到 ${o}`)},Z=()=>{localStorage.setItem(`code_${_.value.id}_${g.value}`,c.value)},ee=o=>{o.preventDefault();const s=o.target,p=s.selectionStart,r=s.selectionEnd;c.value=c.value.substring(0,p)+"    "+c.value.substring(r),setTimeout(()=>{s.selectionStart=s.selectionEnd=p+4},0)},se=o=>{R.value=!0,document.addEventListener("mousemove",T),document.addEventListener("mouseup",j)},T=o=>{if(!R.value)return;const s=document.querySelector(".coding-main");if(!s)return;const p=s.getBoundingClientRect(),r=(o.clientX-p.left)/p.width*100;O.value=Math.max(20,Math.min(60,r))},j=()=>{R.value=!1,document.removeEventListener("mousemove",T),document.removeEventListener("mouseup",j)},te=()=>{c.value=x[g.value],z.success("代码已重置")},ae=()=>{z.success("草稿已保存")},J=async()=>{if(!c.value.trim()){z.warning("请输入代码");return}M.value=!0,await new Promise(r=>setTimeout(r,2e3));const o=Math.floor(Math.random()*4)+1,s=3,p=Math.round(o/s*100);v.value={passed:o===s,score:p,passedCases:o,totalCases:s,runtime:Math.floor(Math.random()*100)+20,memory:Math.floor(Math.random()*5e3)+1e3,ranking:Math.floor(Math.random()*50)+1,testCases:L.value.map((r,w)=>({input:r.input,expectedOutput:r.expectedOutput,actualOutput:w<o?r.expectedOutput:"错误输出",passed:w<o}))},M.value=!1,C.value=!0,D.value.unshift({id:`S${Date.now()}`,time:new Date().toLocaleString("zh-CN"),status:o===s?"passed":"failed",score:p,language:g.value,runtime:v.value.runtime})},le=o=>{B.value=o.id,P.value=!1,g.value=o.language,c.value=x[o.language],z.info(`已加载历史记录 ${o.id}`)},ne=()=>{C.value=!1,J()},oe=()=>{X.back()};return pe(()=>{const o=localStorage.getItem(`code_${_.value.id}_${g.value}`);c.value=o||x[g.value]}),ve(()=>{document.removeEventListener("mousemove",T),document.removeEventListener("mouseup",j)}),(o,s)=>{const p=y("el-icon"),r=y("el-button"),w=y("el-tag"),E=y("el-option"),ie=y("el-select"),U=y("el-radio-button"),q=y("el-radio-group"),ue=y("el-card"),de=y("el-drawer"),re=y("el-dialog");return i(),u("div",ze,[e("div",Me,[e("div",Pe,[a(r,{link:"",onClick:oe},{default:n(()=>[a(p,null,{default:n(()=>[a(b(ge))]),_:1}),s[8]||(s[8]=d(" 返回 ",-1))]),_:1}),e("div",Ee,[e("span",Oe,l(_.value.title),1),a(w,{type:G(_.value.difficulty),size:"small"},{default:n(()=>[d(l(_.value.difficulty),1)]),_:1},8,["type"])])]),e("div",Re,[a(ie,{modelValue:g.value,"onUpdate:modelValue":s[0]||(s[0]=t=>g.value=t),placeholder:"选择语言",class:"language-select",onChange:Y},{default:n(()=>[a(E,{label:"Python",value:"python"},{default:n(()=>[...s[9]||(s[9]=[e("span",{class:"language-option"},[e("span",{class:"lang-icon python"},"🐍"),d(" Python ")],-1)])]),_:1}),a(E,{label:"Java",value:"java"},{default:n(()=>[...s[10]||(s[10]=[e("span",{class:"language-option"},[e("span",{class:"lang-icon java"},"☕"),d(" Java ")],-1)])]),_:1}),a(E,{label:"C++",value:"cpp"},{default:n(()=>[...s[11]||(s[11]=[e("span",{class:"language-option"},[e("span",{class:"lang-icon cpp"},"⚡"),d(" C++ ")],-1)])]),_:1}),a(E,{label:"JavaScript",value:"javascript"},{default:n(()=>[...s[12]||(s[12]=[e("span",{class:"language-option"},[e("span",{class:"lang-icon js"},"📜"),d(" JavaScript ")],-1)])]),_:1})]),_:1},8,["modelValue"]),a(r,{type:"primary",onClick:s[1]||(s[1]=t=>P.value=!0)},{default:n(()=>[a(p,null,{default:n(()=>[a(b(fe))]),_:1}),s[13]||(s[13]=d(" 历史记录 ",-1))]),_:1})])]),e("div",$e,[e("div",{class:"problem-panel",style:H({width:O.value+"%"})},[e("div",Ie,[a(q,{modelValue:$.value,"onUpdate:modelValue":s[2]||(s[2]=t=>$.value=t),size:"small"},{default:n(()=>[a(U,{label:"description"},{default:n(()=>[...s[14]||(s[14]=[d("题目描述",-1)])]),_:1}),a(U,{label:"testcases"},{default:n(()=>[...s[15]||(s[15]=[d("测试用例",-1)])]),_:1})]),_:1},8,["modelValue"])]),e("div",Le,[$.value==="description"?(i(),u("div",Te,[e("div",je,[e("h2",null,l(_.value.title),1),e("div",Ue,[(i(!0),u(f,null,h(_.value.tags,t=>(i(),S(w,{key:t,size:"small",effect:"plain"},{default:n(()=>[d(l(t),1)]),_:2},1024))),128))])]),e("div",Be,[e("div",De,[s[16]||(s[16]=e("h3",null,"题目描述",-1)),e("p",null,l(_.value.description),1)]),e("div",Ne,[s[17]||(s[17]=e("h3",null,"输入格式",-1)),e("p",null,l(_.value.inputFormat),1)]),e("div",Fe,[s[18]||(s[18]=e("h3",null,"输出格式",-1)),e("p",null,l(_.value.outputFormat),1)]),e("div",Je,[s[21]||(s[21]=e("h3",null,"示例",-1)),(i(!0),u(f,null,h(_.value.examples,(t,k)=>(i(),u("div",{key:k,class:"example-block"},[e("div",qe,[s[19]||(s[19]=e("span",{class:"example-label"},"输入：",-1)),e("pre",He,l(t.input),1)]),e("div",Ke,[s[20]||(s[20]=e("span",{class:"example-label"},"输出：",-1)),e("pre",Qe,l(t.output),1)])]))),128))]),e("div",We,[s[22]||(s[22]=e("h3",null,"约束条件",-1)),e("ul",null,[(i(!0),u(f,null,h(_.value.constraints,(t,k)=>(i(),u("li",{key:k},l(t),1))),128))])])])])):(i(),u("div",Xe,[e("div",Ae,[a(q,{modelValue:I.value,"onUpdate:modelValue":s[3]||(s[3]=t=>I.value=t),size:"small"},{default:n(()=>[(i(!0),u(f,null,h(L.value,t=>(i(),S(U,{key:t.id,label:t.id},{default:n(()=>[d(" 用例 "+l(t.id),1)]),_:2},1032,["label"]))),128))]),_:1},8,["modelValue"])]),(i(!0),u(f,null,h(L.value,t=>K((i(),u("div",{key:t.id,class:"testcase-content"},[e("div",Ge,[s[23]||(s[23]=e("span",{class:"testcase-label"},"输入",-1)),e("pre",Ye,l(t.input),1)]),e("div",Ze,[s[24]||(s[24]=e("span",{class:"testcase-label"},"期望输出",-1)),e("pre",es,l(t.expectedOutput),1)])])),[[ye,I.value===t.id]])),128))]))]),e("div",{class:"resize-handle",onMousedown:se},null,32)],4),e("div",{class:"editor-panel",style:H({width:100-O.value+"%"})},[e("div",ss,[s[27]||(s[27]=e("span",{class:"editor-title"},"代码编辑器",-1)),e("div",ts,[a(r,{size:"small",onClick:te},{default:n(()=>[a(p,null,{default:n(()=>[a(b(he))]),_:1}),s[25]||(s[25]=d(" 重置 ",-1))]),_:1}),a(r,{size:"small",type:"primary",plain:"",onClick:ae},{default:n(()=>[a(p,null,{default:n(()=>[a(b(be))]),_:1}),s[26]||(s[26]=d(" 保存草稿 ",-1))]),_:1})])]),e("div",as,[e("div",ls,[(i(!0),u(f,null,h(N.value,t=>(i(),u("span",{key:t},l(t),1))),128))]),K(e("textarea",{"onUpdate:modelValue":s[4]||(s[4]=t=>c.value=t),class:"code-editor",placeholder:A.value,onInput:Z,onKeydown:_e(ee,["tab"]),spellcheck:"false"},null,40,ns),[[me,c.value]])]),e("div",os,[e("div",is,[e("span",null,"行数: "+l(N.value),1),e("span",null,"字符数: "+l(c.value.length),1)]),e("div",us,[a(r,{type:"primary",size:"large",loading:M.value,disabled:!c.value.trim(),onClick:J},{default:n(()=>[M.value?(i(),u(f,{key:0},[a(p,{class:"is-loading"},{default:n(()=>[a(b(we))]),_:1}),s[28]||(s[28]=d(" 评测中... ",-1))],64)):(i(),u(f,{key:1},[a(p,null,{default:n(()=>[a(b(ke))]),_:1}),s[29]||(s[29]=d(" 提交代码 ",-1))],64))]),_:1},8,["loading","disabled"])])])],4)]),a(de,{modelValue:P.value,"onUpdate:modelValue":s[5]||(s[5]=t=>P.value=t),title:"提交历史",direction:"rtl",size:"400px"},{default:n(()=>[e("div",ds,[(i(!0),u(f,null,h(D.value,t=>(i(),S(ue,{key:t.id,class:V(["history-card",{current:t.id===B.value}]),onClick:k=>le(t)},{default:n(()=>[e("div",rs,[e("span",cs,l(t.time),1),a(w,{type:t.status==="passed"?"success":"danger",size:"small"},{default:n(()=>[d(l(t.status==="passed"?"通过":"未通过"),1)]),_:2},1032,["type"])]),e("div",ps,[s[30]||(s[30]=e("span",{class:"score-label"},"得分:",-1)),e("span",{class:V(["score-value",F(t.score)])},l(t.score),3),s[31]||(s[31]=e("span",{class:"score-total"},"/ 100",-1))]),e("div",vs,[e("span",null,l(t.language),1),s[32]||(s[32]=e("span",{class:"divider"},"|",-1)),e("span",null,"用时 "+l(t.runtime)+"ms",1)])]),_:2},1032,["class","onClick"]))),128))])]),_:1},8,["modelValue"]),a(re,{modelValue:C.value,"onUpdate:modelValue":s[7]||(s[7]=t=>C.value=t),title:"评测结果",width:"800px","close-on-click-modal":!1},{footer:n(()=>[a(r,{onClick:s[6]||(s[6]=t=>C.value=!1)},{default:n(()=>[...s[42]||(s[42]=[d("关闭",-1)])]),_:1}),a(r,{type:"primary",onClick:ne},{default:n(()=>[...s[43]||(s[43]=[d("重新提交",-1)])]),_:1})]),default:n(()=>[v.value?(i(),u("div",ms,[e("div",_s,[e("div",{class:V(["result-status",v.value.passed?"passed":"failed"])},[a(p,{size:48},{default:n(()=>[v.value.passed?(i(),S(b(Ce),{key:0})):(i(),S(b(xe),{key:1}))]),_:1}),e("span",null,l(v.value.passed?"通过":"未通过"),1)],2),e("div",gs,[e("div",{class:V(["score-circle",F(v.value.score)])},[e("span",fs,l(v.value.score),1),s[33]||(s[33]=e("span",{class:"score-unit"},"分",-1))],2)])]),e("div",ys,[e("div",hs,[e("span",bs,l(v.value.passedCases)+"/"+l(v.value.totalCases),1),s[34]||(s[34]=e("span",{class:"stat-label"},"通过用例",-1))]),e("div",ws,[e("span",ks,l(v.value.runtime)+"ms",1),s[35]||(s[35]=e("span",{class:"stat-label"},"运行时间",-1))]),e("div",Cs,[e("span",xs,l(v.value.memory)+"KB",1),s[36]||(s[36]=e("span",{class:"stat-label"},"内存消耗",-1))]),e("div",Ss,[e("span",Vs,"#"+l(v.value.ranking),1),s[37]||(s[37]=e("span",{class:"stat-label"},"排名",-1))])]),e("div",zs,[s[41]||(s[41]=e("h3",null,"测试用例详情",-1)),e("div",Ms,[(i(!0),u(f,null,h(v.value.testCases,(t,k)=>(i(),u("div",{key:k,class:V(["case-item",t.passed?"passed":"failed"])},[e("div",Ps,[e("span",Es,"用例 "+l(Number(k)+1),1),a(w,{type:t.passed?"success":"danger",size:"small"},{default:n(()=>[d(l(t.passed?"通过":"失败"),1)]),_:2},1032,["type"])]),t.passed?W("",!0):(i(),u("div",Os,[e("div",Rs,[s[38]||(s[38]=e("span",{class:"case-label"},"输入:",-1)),e("pre",$s,l(t.input),1)]),e("div",Is,[s[39]||(s[39]=e("span",{class:"case-label"},"期望输出:",-1)),e("pre",Ls,l(t.expectedOutput),1)]),e("div",Ts,[s[40]||(s[40]=e("span",{class:"case-label"},"实际输出:",-1)),e("pre",js,l(t.actualOutput),1)])]))],2))),128))])])])):W("",!0)]),_:1},8,["modelValue"])])}}}),Ns=Ve(Us,[["__scopeId","data-v-f7706175"]]);export{Ns as default};

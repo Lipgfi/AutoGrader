@@ -1,0 +1,13 @@
+This is a test file for grep commands
+Linux is an operating system
+LINUX is open source
+linux is free
+This line has no spaces
+12345
+67890
+The quick brown fox
+You are reading this
+One more line with numbers 123
+
+Empty line above
+Another line with spaces
