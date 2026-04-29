@@ -322,7 +322,7 @@ const goBack = () => {
 }
 
 const goToAssignment = (assignmentId: string) => {
-  router.push(`/student/assignment/${assignmentId}`)
+  router.push({ name: 'StudentCoding', params: { id: assignmentId } })
 }
 </script>
 

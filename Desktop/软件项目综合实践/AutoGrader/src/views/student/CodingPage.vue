@@ -475,11 +475,15 @@ const getScoreClass = (score: number): string => {
 }
 
 const handleLanguageChange = (lang: string) => {
-  if (!code.value || code.value === codeTemplates[selectedLanguage.value]) {
-    code.value = codeTemplates[lang]
+  const currentTemplate = codeTemplates[selectedLanguage.value]
+  const newTemplate = codeTemplates[lang]
+  
+  if (!code.value || code.value === currentTemplate) {
+    code.value = newTemplate
+  } else {
+    ElMessage.warning(`已切换到 ${lang}，但当前代码未重置。如需使用 ${lang} 模板，请点击"重置"按钮。`)
   }
   selectedLanguage.value = lang
-  ElMessage.success(`已切换到 ${lang}`)
 }
 
 const handleCodeChange = () => {
