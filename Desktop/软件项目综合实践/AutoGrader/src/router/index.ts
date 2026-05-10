@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { ElMessage } from 'element-plus'
 
 const routes = [
   {
@@ -9,17 +10,20 @@ const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../views/Login.vue')
+    component: () => import('../views/Login.vue'),
+    meta: { requiresAuth: false }
   },
   {
     path: '/register',
     name: 'Register',
-    component: () => import('../views/Register.vue')
+    component: () => import('../views/Register.vue'),
+    meta: { requiresAuth: false }
   },
   
   {
     path: '/student',
     redirect: '/student/courses',
+    meta: { requiresAuth: true, role: 'student' },
     children: [
       {
         path: 'courses',
@@ -63,6 +67,7 @@ const routes = [
   {
     path: '/teacher',
     redirect: '/teacher/courses',
+    meta: { requiresAuth: true, role: 'teacher' },
     children: [
       {
         path: 'courses',
@@ -100,6 +105,7 @@ const routes = [
   {
     path: '/admin',
     redirect: '/admin/dashboard',
+    meta: { requiresAuth: true, role: 'admin' },
     children: [
       {
         path: 'dashboard',
@@ -141,14 +147,68 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
+  const userStore = useUserStore()
+  
+  // 设置页面标题
   document.title = to.meta.title ? `${to.meta.title} - AutoGrader` : 'AutoGrader'
   
-  // 不需要登录的页面
-  const publicPages = ['/login', '/register']
-  const isPublicPage = publicPages.includes(to.path)
+  // 检查是否需要登录
+  const requiresAuth = to.meta.requiresAuth !== false // 默认需要登录
+  const isLoggedIn = userStore.isLoggedIn
   
-  // 临时允许所有页面访问，以便测试
+  console.log('[Router] 路由跳转:', to.path, '需要登录:', requiresAuth, '已登录:', isLoggedIn)
+  
+  // 不需要登录的页面
+  if (!requiresAuth) {
+    // 如果已登录且去登录/注册页面，重定向到对应首页
+    if (isLoggedIn && (to.path === '/login' || to.path === '/register')) {
+      const userRole = userStore.userInfo?.role || 'student'
+      const redirectPath = getHomePathByRole(userRole)
+      console.log('[Router] 已登录用户访问登录页，重定向到:', redirectPath)
+      next(redirectPath)
+      return
+    }
+    next()
+    return
+  }
+  
+  // 需要登录的页面
+  if (!isLoggedIn) {
+    ElMessage.warning('请先登录')
+    console.log('[Router] 未登录，重定向到登录页')
+    next('/login')
+    return
+  }
+  
+  // 检查角色权限
+  const requiredRole = to.meta.role
+  const userRole = userStore.userInfo?.role
+  
+  console.log('[Router] 角色检查 - 需要:', requiredRole, '用户:', userRole)
+  
+  if (requiredRole && userRole !== requiredRole) {
+    ElMessage.error('您没有访问该页面的权限')
+    const redirectPath = getHomePathByRole(userRole)
+    console.log('[Router] 角色不匹配，重定向到:', redirectPath)
+    next(redirectPath)
+    return
+  }
+  
   next()
 })
+
+// 根据角色获取首页路径
+function getHomePathByRole(role: string): string {
+  switch (role) {
+    case 'student':
+      return '/student/courses'
+    case 'teacher':
+      return '/teacher/courses'
+    case 'admin':
+      return '/admin/dashboard'
+    default:
+      return '/student/courses'
+  }
+}
 
 export default router

@@ -7,6 +7,13 @@
       </div>
       <div class="header-right">
         <span class="current-time">{{ currentTime }}</span>
+        <el-button 
+          icon="LogOut" 
+          @click="handleLogout"
+          class="logout-btn"
+        >
+          退出登录
+        </el-button>
       </div>
     </div>
     
@@ -293,6 +300,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '../../stores/user'
 import { 
   User, 
   Reading, 
@@ -302,8 +311,12 @@ import {
   Setting,
   Warning,
   SuccessFilled,
-  QuestionFilled
+  QuestionFilled,
+  LogOut
 } from '@element-plus/icons-vue'
+
+const router = useRouter()
+const userStore = useUserStore()
 
 const currentTime = ref('')
 const chartPeriod = ref('week')
@@ -405,6 +418,11 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(timer)
 })
+
+const handleLogout = () => {
+  userStore.logout()
+  router.push('/login')
+}
 </script>
 
 <style scoped>
@@ -421,11 +439,27 @@ onUnmounted(() => {
   margin-bottom: var(--spacing-lg);
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
 .header-left h1 {
   color: var(--text-primary);
   font-size: var(--font-size-xxl);
   font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--spacing-xs) 0;
+}
+
+.logout-btn {
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+  
+  &:hover {
+    background-color: var(--danger-light);
+    border-color: var(--danger-light);
+  }
 }
 
 .header-desc {

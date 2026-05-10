@@ -13,6 +13,13 @@
           clearable
           class="search-input"
         />
+        <el-button 
+          icon="LogOut" 
+          @click="handleLogout"
+          class="logout-btn"
+        >
+          退出登录
+        </el-button>
       </div>
     </div>
     
@@ -164,6 +171,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '../../stores/user'
 import { 
   Grid, 
   List, 
@@ -171,10 +179,12 @@ import {
   School, 
   Calendar, 
   Bell, 
-  Check 
+  Check,
+  LogOut
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 const searchKeyword = ref('')
 const filterSemester = ref('')
@@ -270,6 +280,11 @@ const goToCourseDetail = (courseId: string) => {
 const handleRowClick = (row: any) => {
   goToCourseDetail(row.courseId)
 }
+
+const handleLogout = () => {
+  userStore.logout()
+  router.push('/login')
+}
 </script>
 
 <style scoped>
@@ -299,8 +314,24 @@ const handleRowClick = (row: any) => {
   margin: 0;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
 .search-input {
   width: 300px;
+}
+
+.logout-btn {
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+  
+  &:hover {
+    background-color: var(--danger-light);
+    border-color: var(--danger-light);
+  }
 }
 
 .filter-bar {

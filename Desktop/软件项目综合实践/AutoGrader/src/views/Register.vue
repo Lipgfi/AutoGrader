@@ -50,12 +50,78 @@
         <el-form-item label="账号" prop="username">
           <el-input
             v-model="registerForm.username"
-            placeholder="请输入学号/工号/账号"
+            placeholder="请输入登录账号（4-20个字符）"
             prefix-icon="User"
             size="large"
             clearable
           />
         </el-form-item>
+        
+        <el-form-item label="真实姓名" prop="realName">
+          <el-input
+            v-model="registerForm.realName"
+            placeholder="请输入真实姓名"
+            prefix-icon="User"
+            size="large"
+            clearable
+          />
+        </el-form-item>
+        
+        <el-form-item label="邮箱" prop="email">
+          <el-input
+            v-model="registerForm.email"
+            type="email"
+            placeholder="请输入邮箱地址"
+            prefix-icon="Message"
+            size="large"
+            clearable
+          />
+        </el-form-item>
+        
+        <el-form-item label="手机号" prop="phone">
+          <el-input
+            v-model="registerForm.phone"
+            placeholder="请输入手机号（选填）"
+            prefix-icon="Phone"
+            size="large"
+            clearable
+          />
+        </el-form-item>
+        
+        <!-- 学生专属字段 -->
+        <template v-if="registerForm.role === 'student'">
+          <el-form-item label="学号" prop="studentId">
+            <el-input
+              v-model="registerForm.studentId"
+              placeholder="请输入学号"
+              prefix-icon="Document"
+              size="large"
+              clearable
+            />
+          </el-form-item>
+        </template>
+        
+        <!-- 教师专属字段 -->
+        <template v-if="registerForm.role === 'teacher'">
+          <el-form-item label="工号" prop="teacherId">
+            <el-input
+              v-model="registerForm.teacherId"
+              placeholder="请输入工号"
+              prefix-icon="Document"
+              size="large"
+              clearable
+            />
+          </el-form-item>
+          <el-form-item label="院系" prop="department">
+            <el-input
+              v-model="registerForm.department"
+              placeholder="请输入所属院系（选填）"
+              prefix-icon="OfficeBuilding"
+              size="large"
+              clearable
+            />
+          </el-form-item>
+        </template>
         
         <el-form-item label="密码" prop="password">
           <el-input
@@ -132,7 +198,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Reading, Setting } from '@element-plus/icons-vue'
+import { User, Reading, Setting, Message, Phone, Document, OfficeBuilding } from '@element-plus/icons-vue'
+import { request } from '../api/interceptors'
 
 const router = useRouter()
 const registerFormRef = ref()
@@ -140,16 +207,40 @@ const loading = ref(false)
 
 const registerForm = reactive({
   username: '',
+  realName: '',
+  email: '',
+  phone: '',
+  studentId: '',
+  teacherId: '',
+  department: '',
   password: '',
   confirmPassword: '',
   captcha: '',
   role: 'student'
 })
 
+const validateEmail = (rule: any, value: string, callback: any) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!value) {
+    callback(new Error('请输入邮箱地址'))
+  } else if (!emailRegex.test(value)) {
+    callback(new Error('请输入正确格式的邮箱地址'))
+  } else {
+    callback()
+  }
+}
+
 const registerRules = {
   username: [
     { required: true, message: '请输入账号', trigger: 'blur' },
     { min: 4, max: 20, message: '账号长度为4-20个字符', trigger: 'blur' }
+  ],
+  realName: [
+    { required: true, message: '请输入真实姓名', trigger: 'blur' },
+    { min: 2, max: 100, message: '姓名长度为2-100个字符', trigger: 'blur' }
+  ],
+  email: [
+    { required: true, validator: validateEmail, trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -171,6 +262,12 @@ const registerRules = {
   captcha: [
     { required: true, message: '请输入验证码', trigger: 'blur' },
     { len: 4, message: '验证码为4位字符', trigger: 'blur' }
+  ],
+  studentId: [
+    { required: true, message: '请输入学号', trigger: 'blur' }
+  ],
+  teacherId: [
+    { required: true, message: '请输入工号', trigger: 'blur' }
   ]
 }
 
@@ -237,14 +334,43 @@ const handleRegister = async () => {
     
     loading.value = true
     
-    setTimeout(() => {
-      loading.value = false
-      ElMessage.success('注册成功')
+    const registerData: any = {
+      username: registerForm.username,
+      password: registerForm.password,
+      realName: registerForm.realName,
+      role: registerForm.role,
+      email: registerForm.email,
+      phone: registerForm.phone || null
+    }
+    
+    // 根据角色添加扩展字段
+    if (registerForm.role === 'student') {
+      registerData.studentId = registerForm.studentId
+    } else if (registerForm.role === 'teacher') {
+      registerData.teacherId = registerForm.teacherId
+      registerData.department = registerForm.department || null
+    }
+    
+    console.log('[Register] 发送注册数据:', registerData)
+    
+    const response = await request.post('/auth/register', registerData)
+    
+    console.log('[Register] 收到响应:', response)
+    
+    if (response.code === 200 || response.code === 201) {
+      ElMessage.success('注册成功，请登录')
       router.push('/login')
-    }, 1000)
-  } catch (error) {
+    } else {
+      ElMessage.error(response.message || '注册失败')
+    }
+  } catch (error: any) {
     loading.value = false
-    console.error('注册表单校验失败', error)
+    console.error('[Register] 注册失败:', error)
+    if (error.message) {
+      ElMessage.error(error.message)
+    }
+  } finally {
+    loading.value = false
   }
 }
 

@@ -1,43 +1,66 @@
-import axios from 'axios'
+import { request } from '../api/interceptors'
 import { ElMessage } from 'element-plus'
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-})
-
-// 请求拦截器
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
-  }
-)
-
-// 响应拦截器
-api.interceptors.response.use(
-  (response) => {
-    const { code, message, data } = response.data
-    if (code === 200) {
-      return data
-    } else {
-      ElMessage.error(message || '请求失败')
-      return Promise.reject(new Error(message || '请求失败'))
+const api = {
+  get: async (url: string, params?: any) => {
+    try {
+      const response = await request.get(url, params)
+      if (response.code === 200 || response.code === 201) {
+        return response.data
+      } else {
+        ElMessage.error(response.message || '请求失败')
+        return Promise.reject(new Error(response.message || '请求失败'))
+      }
+    } catch (error: any) {
+      ElMessage.error(error.message || '网络错误')
+      return Promise.reject(error)
     }
   },
-  (error) => {
-    ElMessage.error(error.message || '网络错误')
-    return Promise.reject(error)
+
+  post: async (url: string, data?: any) => {
+    try {
+      const response = await request.post(url, data)
+      if (response.code === 200 || response.code === 201) {
+        return response.data
+      } else {
+        ElMessage.error(response.message || '请求失败')
+        return Promise.reject(new Error(response.message || '请求失败'))
+      }
+    } catch (error: any) {
+      ElMessage.error(error.message || '网络错误')
+      return Promise.reject(error)
+    }
+  },
+
+  put: async (url: string, data?: any) => {
+    try {
+      const response = await request.put(url, data)
+      if (response.code === 200 || response.code === 201) {
+        return response.data
+      } else {
+        ElMessage.error(response.message || '请求失败')
+        return Promise.reject(new Error(response.message || '请求失败'))
+      }
+    } catch (error: any) {
+      ElMessage.error(error.message || '网络错误')
+      return Promise.reject(error)
+    }
+  },
+
+  delete: async (url: string, params?: any) => {
+    try {
+      const response = await request.delete(url, params)
+      if (response.code === 200 || response.code === 201) {
+        return response.data
+      } else {
+        ElMessage.error(response.message || '请求失败')
+        return Promise.reject(new Error(response.message || '请求失败'))
+      }
+    } catch (error: any) {
+      ElMessage.error(error.message || '网络错误')
+      return Promise.reject(error)
+    }
   }
-)
+}
 
 export default api

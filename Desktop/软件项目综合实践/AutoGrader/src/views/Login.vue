@@ -124,8 +124,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Reading, Setting } from '@element-plus/icons-vue'
+import { request } from '../api/interceptors'
+import { useUserStore } from '../stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const loginFormRef = ref()
 const loading = ref(false)
 
@@ -140,7 +143,7 @@ const loginForm = reactive({
 const loginRules = {
   username: [
     { required: true, message: '请输入账号', trigger: 'blur' },
-    { min: 4, max: 20, message: '账号长度为4-20个字符', trigger: 'blur' }
+    { min: 2, max: 20, message: '账号长度为2-20个字符', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -181,47 +184,84 @@ const handleLogin = async () => {
     
     loading.value = true
     
-    setTimeout(() => {
-      loading.value = false
-      ElMessage.success('登录成功')
+    console.log('[Login] 发送登录请求:', {
+      username: loginForm.username,
+      password: loginForm.password,
+      role: loginForm.role
+    })
+    
+    const response = await request.post('/user/login', {
+      username: loginForm.username,
+      password: loginForm.password,
+      role: loginForm.role
+    })
+    
+    console.log('[Login] 收到登录响应:', response)
+    
+    if (response.code === 200 && response.data) {
+      const { token, user } = response.data
       
+      // 保存用户信息和token
+      userStore.setToken(token)
+      userStore.setUserInfo(user)
+      
+      // 如果勾选了记住密码，保存到localStorage
       if (loginForm.remember) {
-        localStorage.setItem('autograder_user', JSON.stringify({
+        localStorage.setItem('autograder_remember', JSON.stringify({
           username: loginForm.username,
           role: loginForm.role
         }))
+      } else {
+        localStorage.removeItem('autograder_remember')
       }
       
-      switch (loginForm.role) {
+      ElMessage.success('登录成功')
+      
+      // 根据返回的用户角色跳转，而不是表单选择的角色
+      const userRole = user.role || loginForm.role
+      console.log('[Login] 用户角色:', userRole)
+      
+      let redirectPath = '/student/courses'
+      switch (userRole) {
         case 'student':
-          router.push('/student/courses')
+          redirectPath = '/student/courses'
           break
         case 'teacher':
-          router.push('/teacher/courses')
+          redirectPath = '/teacher/courses'
           break
         case 'admin':
-          router.push('/admin')
+          redirectPath = '/admin/dashboard'
           break
       }
-    }, 1000)
-  } catch (error) {
+      
+      console.log('[Login] 跳转到:', redirectPath)
+      router.push(redirectPath)
+    } else {
+      ElMessage.error(response.message || '登录失败')
+      refreshCaptcha()
+    }
+  } catch (error: any) {
+    console.error('[Login] 登录失败:', error)
+    ElMessage.error(error.message || '登录失败，请检查网络')
+    refreshCaptcha()
+  } finally {
     loading.value = false
-    console.error('登录表单校验失败', error)
   }
 }
 
 onMounted(() => {
   refreshCaptcha()
   
-  const savedUser = localStorage.getItem('autograder_user')
-  if (savedUser) {
+  // 检查是否有记住的账号
+  const saved = localStorage.getItem('autograder_remember')
+  if (saved) {
     try {
-      const user = JSON.parse(savedUser)
-      loginForm.username = user.username
-      loginForm.role = user.role
+      const { username, role } = JSON.parse(saved)
+      loginForm.username = username
+      loginForm.role = role
       loginForm.remember = true
     } catch (error) {
-      console.error('读取本地存储失败', error)
+      console.error('[Login] 读取记住账号失败:', error)
     }
   }
 })

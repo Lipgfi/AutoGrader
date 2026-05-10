@@ -10,6 +10,13 @@
           <el-icon><Plus /></el-icon>
           新建课程
         </el-button>
+        <el-button 
+          icon="LogOut" 
+          @click="handleLogout"
+          class="logout-btn"
+        >
+          退出登录
+        </el-button>
       </div>
     </div>
     
@@ -338,6 +345,8 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '../../stores/user'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, 
@@ -345,9 +354,13 @@ import {
   User, 
   Document, 
   Calendar,
-  UploadFilled 
+  UploadFilled,
+  LogOut
 } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
+
+const router = useRouter()
+const userStore = useUserStore()
 
 const activeTab = ref('courses')
 const courseSearch = ref('')
@@ -705,6 +718,11 @@ const viewStudents = (cls: any) => {
   selectedClass.value = cls
   studentsDialogVisible.value = true
 }
+
+const handleLogout = () => {
+  userStore.logout()
+  router.push('/login')
+}
 </script>
 
 <style scoped>
@@ -728,10 +746,26 @@ const viewStudents = (cls: any) => {
   margin: 0 0 var(--spacing-xs) 0;
 }
 
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
 .header-desc {
   color: var(--text-tertiary);
   font-size: var(--font-size-sm);
   margin: 0;
+}
+
+.logout-btn {
+  background-color: var(--danger-color);
+  border-color: var(--danger-color);
+  
+  &:hover {
+    background-color: var(--danger-light);
+    border-color: var(--danger-light);
+  }
 }
 
 .management-tabs {

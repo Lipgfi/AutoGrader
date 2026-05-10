@@ -288,6 +288,7 @@ const courses = ref([
 const grades = ref([
   {
     id: 'G001',
+    questionId: 'Q001',
     courseId: 'C001',
     courseName: '数据结构与算法',
     assignmentName: '第一次作业 - 数组与链表',
@@ -309,6 +310,7 @@ const grades = ref([
   },
   {
     id: 'G002',
+    questionId: 'Q002',
     courseId: 'C001',
     courseName: '数据结构与算法',
     assignmentName: '第二次作业 - 栈与队列',
@@ -331,6 +333,7 @@ const grades = ref([
   },
   {
     id: 'G003',
+    questionId: 'Q003',
     courseId: 'C002',
     courseName: '操作系统原理',
     assignmentName: '进程调度模拟',
@@ -348,6 +351,7 @@ const grades = ref([
   },
   {
     id: 'G004',
+    questionId: 'Q004',
     courseId: 'C003',
     courseName: '计算机网络',
     assignmentName: 'TCP连接模拟',
@@ -422,12 +426,12 @@ const viewDetail = (row: any) => {
 }
 
 const goToSubmit = (row: any) => {
-  router.push(`/student/coding/${row.id}`)
+  router.push(`/student/coding/${row.questionId || row.id}`)
 }
 
 const retrySubmit = () => {
   if (selectedGrade.value) {
-    router.push(`/student/coding/${selectedGrade.value.id}`)
+    router.push(`/student/coding/${selectedGrade.value.questionId || selectedGrade.value.id}`)
   }
 }
 
