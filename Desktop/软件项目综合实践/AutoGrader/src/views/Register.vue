@@ -57,9 +57,9 @@
           />
         </el-form-item>
         
-        <el-form-item label="真实姓名" prop="realName">
+        <el-form-item label="真实姓名" prop="real_name">
           <el-input
-            v-model="registerForm.realName"
+            v-model="registerForm.real_name"
             placeholder="请输入真实姓名"
             prefix-icon="User"
             size="large"
@@ -90,9 +90,9 @@
         
         <!-- 学生专属字段 -->
         <template v-if="registerForm.role === 'student'">
-          <el-form-item label="学号" prop="studentId">
+          <el-form-item label="学号" prop="student_id">
             <el-input
-              v-model="registerForm.studentId"
+              v-model="registerForm.student_id"
               placeholder="请输入学号"
               prefix-icon="Document"
               size="large"
@@ -103,9 +103,9 @@
         
         <!-- 教师专属字段 -->
         <template v-if="registerForm.role === 'teacher'">
-          <el-form-item label="工号" prop="teacherId">
+          <el-form-item label="工号" prop="teacher_id">
             <el-input
-              v-model="registerForm.teacherId"
+              v-model="registerForm.teacher_id"
               placeholder="请输入工号"
               prefix-icon="Document"
               size="large"
@@ -199,7 +199,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Reading, Setting, Message, Phone, Document, OfficeBuilding } from '@element-plus/icons-vue'
-import { request } from '../api/interceptors'
+import { register } from '../api/auth'
 
 const router = useRouter()
 const registerFormRef = ref()
@@ -207,11 +207,11 @@ const loading = ref(false)
 
 const registerForm = reactive({
   username: '',
-  realName: '',
+  real_name: '',
   email: '',
   phone: '',
-  studentId: '',
-  teacherId: '',
+  student_id: '',
+  teacher_id: '',
   department: '',
   password: '',
   confirmPassword: '',
@@ -235,7 +235,7 @@ const registerRules = {
     { required: true, message: '请输入账号', trigger: 'blur' },
     { min: 4, max: 20, message: '账号长度为4-20个字符', trigger: 'blur' }
   ],
-  realName: [
+  real_name: [
     { required: true, message: '请输入真实姓名', trigger: 'blur' },
     { min: 2, max: 100, message: '姓名长度为2-100个字符', trigger: 'blur' }
   ],
@@ -244,7 +244,7 @@ const registerRules = {
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度为6-20个字符', trigger: 'blur' }
+    { min: 8, max: 20, message: '密码长度为8-20个字符', trigger: 'blur' }
   ],
   confirmPassword: [
     { required: true, message: '请确认密码', trigger: 'blur' },
@@ -263,10 +263,10 @@ const registerRules = {
     { required: true, message: '请输入验证码', trigger: 'blur' },
     { len: 4, message: '验证码为4位字符', trigger: 'blur' }
   ],
-  studentId: [
+  student_id: [
     { required: true, message: '请输入学号', trigger: 'blur' }
   ],
-  teacherId: [
+  teacher_id: [
     { required: true, message: '请输入工号', trigger: 'blur' }
   ]
 }
@@ -278,7 +278,7 @@ const passwordStrength = computed(() => {
   if (!password) return 0
   
   let strength = 0
-  if (password.length >= 6) strength += 1
+  if (password.length >= 8) strength += 1
   if (password.length >= 10) strength += 1
   if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength += 1
   if (/\d/.test(password)) strength += 1
@@ -337,7 +337,7 @@ const handleRegister = async () => {
     const registerData: any = {
       username: registerForm.username,
       password: registerForm.password,
-      realName: registerForm.realName,
+      real_name: registerForm.real_name,
       role: registerForm.role,
       email: registerForm.email,
       phone: registerForm.phone || null
@@ -345,15 +345,15 @@ const handleRegister = async () => {
     
     // 根据角色添加扩展字段
     if (registerForm.role === 'student') {
-      registerData.studentId = registerForm.studentId
+      registerData.student_id = registerForm.student_id
     } else if (registerForm.role === 'teacher') {
-      registerData.teacherId = registerForm.teacherId
+      registerData.teacher_id = registerForm.teacher_id
       registerData.department = registerForm.department || null
     }
     
     console.log('[Register] 发送注册数据:', registerData)
     
-    const response = await request.post('/auth/register', registerData)
+    const response = await register(registerData)
     
     console.log('[Register] 收到响应:', response)
     

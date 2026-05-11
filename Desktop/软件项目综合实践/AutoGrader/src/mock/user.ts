@@ -59,7 +59,7 @@ let nextUserId = 4
 
 export default [
   {
-    url: '/api/user/login',
+    url: '/api/auth/login',
     method: 'post',
     response: ({ body }: { body: any }) => {
       console.log('[Mock] 收到登录请求:', body)
@@ -133,10 +133,10 @@ export default [
       }
       
       // 验证密码长度
-      if (password.length < 6) {
+      if (password.length < 8) {
         return {
           code: 400,
-          message: '密码长度不能少于6位',
+          message: '密码长度不能少于8位',
           data: null
         }
       }

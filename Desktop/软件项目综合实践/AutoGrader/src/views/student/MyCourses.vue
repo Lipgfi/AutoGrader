@@ -169,9 +169,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
+import { getCourses } from '../../api/course'
 import { 
   Grid, 
   List, 
@@ -285,6 +286,22 @@ const handleLogout = () => {
   userStore.logout()
   router.push('/login')
 }
+
+// 加载课程数据
+const loadCourses = async () => {
+  try {
+    const response = await getCourses()
+    if (response.code === 200 && response.data) {
+      courses.value = response.data
+    }
+  } catch (error) {
+    console.error('加载课程失败:', error)
+  }
+}
+
+onMounted(() => {
+  loadCourses()
+})
 </script>
 
 <style scoped>

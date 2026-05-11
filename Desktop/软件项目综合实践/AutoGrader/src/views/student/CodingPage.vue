@@ -315,6 +315,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getQuestionDetail } from '../../api/question'
 import { 
   ArrowLeft, 
   Clock, 
@@ -502,7 +503,40 @@ const questionBank = [
 const currentProblem = ref(questionBank[0])
 const testcases = ref(currentProblem.value.testcases)
 
-const loadQuestion = () => {
+const loadQuestion = async () => {
+  try {
+    const questionId = route.params.id || 'Q001'
+    console.log('[CodingPage] 请求题目详情:', questionId)
+    
+    const response = await getQuestionDetail(questionId)
+    
+    if (response.code === 200 && response.data) {
+      const question = response.data
+      currentProblem.value = {
+        id: question.id,
+        title: question.title,
+        difficulty: question.difficulty,
+        score: question.score,
+        description: question.description,
+        inputFormat: question.inputFormat,
+        outputFormat: question.outputFormat,
+        testcases: question.testCases || []
+      }
+      testcases.value = question.testCases || []
+      selectedTestcase.value = testcases.value[0]?.id || 1
+      console.log('[CodingPage] 加载题目成功:', question.title)
+    } else {
+      ElMessage.warning('未找到该题目，显示默认题目')
+      loadFromLocal()
+    }
+  } catch (error) {
+    console.error('[CodingPage] 加载题目失败:', error)
+    ElMessage.error('加载题目失败，请稍后重试')
+    loadFromLocal()
+  }
+}
+
+const loadFromLocal = () => {
   const questionId = route.params.id || 'Q001'
   const question = questionBank.find(q => q.id === questionId)
   
@@ -510,12 +544,10 @@ const loadQuestion = () => {
     currentProblem.value = question
     testcases.value = question.testcases
     selectedTestcase.value = question.testcases[0]?.id || 1
-    console.log('[CodingPage] 加载题目成功:', question.title)
   } else {
     currentProblem.value = questionBank[0]
     testcases.value = questionBank[0].testcases
     selectedTestcase.value = questionBank[0].testcases[0]?.id || 1
-    ElMessage.warning('未找到该题目，显示默认题目')
   }
 }
 

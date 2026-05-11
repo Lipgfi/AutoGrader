@@ -124,7 +124,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Reading, Setting } from '@element-plus/icons-vue'
-import { request } from '../api/interceptors'
+import { login } from '../api/auth'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -190,7 +190,7 @@ const handleLogin = async () => {
       role: loginForm.role
     })
     
-    const response = await request.post('/user/login', {
+    const response = await login({
       username: loginForm.username,
       password: loginForm.password,
       role: loginForm.role
