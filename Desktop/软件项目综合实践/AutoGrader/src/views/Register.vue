@@ -340,7 +340,8 @@ const handleRegister = async () => {
       real_name: registerForm.real_name,
       role: registerForm.role,
       email: registerForm.email,
-      phone: registerForm.phone || null
+      phone: registerForm.phone || null,
+      department: registerForm.department || null
     }
     
     // 根据角色添加扩展字段
@@ -348,7 +349,6 @@ const handleRegister = async () => {
       registerData.student_id = registerForm.student_id
     } else if (registerForm.role === 'teacher') {
       registerData.teacher_id = registerForm.teacher_id
-      registerData.department = registerForm.department || null
     }
     
     console.log('[Register] 发送注册数据:', registerData)

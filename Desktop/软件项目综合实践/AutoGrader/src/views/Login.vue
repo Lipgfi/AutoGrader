@@ -199,11 +199,22 @@ const handleLogin = async () => {
     console.log('[Login] 收到登录响应:', response)
     
     if (response.code === 200 && response.data) {
-      const { token, user } = response.data
+      const { token, user, role, userId } = response.data
       
-      // 保存用户信息和token
+      // 保存token
       userStore.setToken(token)
-      userStore.setUserInfo(user)
+      
+      // 兼容两种响应格式：{token, user: {...}} 或 {token, role, userId}
+      let userInfo = user
+      if (!user && role && userId) {
+        // 后端返回格式：{token, role, userId}
+        userInfo = {
+          id: userId,
+          role: role,
+          username: loginForm.username
+        }
+      }
+      userStore.setUserInfo(userInfo)
       
       // 如果勾选了记住密码，保存到localStorage
       if (loginForm.remember) {
@@ -217,8 +228,8 @@ const handleLogin = async () => {
       
       ElMessage.success('登录成功')
       
-      // 根据返回的用户角色跳转，而不是表单选择的角色
-      const userRole = user.role || loginForm.role
+      // 根据返回的用户角色跳转，兼容两种响应格式
+      const userRole = user?.role || role || loginForm.role
       console.log('[Login] 用户角色:', userRole)
       
       let redirectPath = '/student/courses'

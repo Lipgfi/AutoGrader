@@ -6,6 +6,7 @@ import courseMock from '../mock/course'
 import assignmentMock from '../mock/assignment'
 import gradeMock from '../mock/grade'
 import studentMock from '../mock/student'
+import router from '../router'
 
 // 合并所有mock接口
 const allMocks = [
@@ -54,7 +55,8 @@ axiosInstance.interceptors.response.use(
           ElMessage.error('未授权，请重新登录')
           const userStore = useUserStore()
           userStore.logout()
-          window.location.href = '/login'
+          // 使用Vue路由导航，避免页面完全刷新
+          router.push('/login')
           break
         case 403:
           ElMessage.error('拒绝访问')
@@ -111,50 +113,69 @@ const mockRequest = (url: string, method: string, data?: any) => {
   return Promise.reject(new Error(`Mock接口未找到: ${method} ${fullUrl}`))
 }
 
-// 封装的request对象，优先使用mock
+// 检查是否启用Mock（默认禁用）
+const enableMock = import.meta.env.VITE_ENABLE_MOCK === 'true'
+
+// 封装的request对象，默认使用真实请求，可通过环境变量启用Mock
 export const request = {
   get: async (url: string, params?: any) => {
-    try {
-      // 尝试使用mock
-      return await mockRequest(url, 'get', params)
-    } catch (mockError) {
-      // 如果mock失败，尝试真实请求
-      console.log('[Request] Mock失败，尝试真实请求')
-      return await axiosInstance.get(url, { params })
+    if (enableMock) {
+      try {
+        // 尝试使用mock
+        return await mockRequest(url, 'get', params)
+      } catch (mockError) {
+        // 如果mock失败，尝试真实请求
+        console.log('[Request] Mock失败，尝试真实请求')
+        return await axiosInstance.get(url, { params })
+      }
     }
+    // 默认使用真实请求
+    return await axiosInstance.get(url, { params })
   },
   
   post: async (url: string, data?: any) => {
-    try {
-      // 尝试使用mock
-      return await mockRequest(url, 'post', data)
-    } catch (mockError) {
-      // 如果mock失败，尝试真实请求
-      console.log('[Request] Mock失败，尝试真实请求')
-      return await axiosInstance.post(url, data)
+    if (enableMock) {
+      try {
+        // 尝试使用mock
+        return await mockRequest(url, 'post', data)
+      } catch (mockError) {
+        // 如果mock失败，尝试真实请求
+        console.log('[Request] Mock失败，尝试真实请求')
+        return await axiosInstance.post(url, data)
+      }
     }
+    // 默认使用真实请求
+    return await axiosInstance.post(url, data)
   },
   
   put: async (url: string, data?: any) => {
-    try {
-      // 尝试使用mock
-      return await mockRequest(url, 'put', data)
-    } catch (mockError) {
-      // 如果mock失败，尝试真实请求
-      console.log('[Request] Mock失败，尝试真实请求')
-      return await axiosInstance.put(url, data)
+    if (enableMock) {
+      try {
+        // 尝试使用mock
+        return await mockRequest(url, 'put', data)
+      } catch (mockError) {
+        // 如果mock失败，尝试真实请求
+        console.log('[Request] Mock失败，尝试真实请求')
+        return await axiosInstance.put(url, data)
+      }
     }
+    // 默认使用真实请求
+    return await axiosInstance.put(url, data)
   },
   
   delete: async (url: string, params?: any) => {
-    try {
-      // 尝试使用mock
-      return await mockRequest(url, 'delete', params)
-    } catch (mockError) {
-      // 如果mock失败，尝试真实请求
-      console.log('[Request] Mock失败，尝试真实请求')
-      return await axiosInstance.delete(url, { params })
+    if (enableMock) {
+      try {
+        // 尝试使用mock
+        return await mockRequest(url, 'delete', params)
+      } catch (mockError) {
+        // 如果mock失败，尝试真实请求
+        console.log('[Request] Mock失败，尝试真实请求')
+        return await axiosInstance.delete(url, { params })
+      }
     }
+    // 默认使用真实请求
+    return await axiosInstance.delete(url, { params })
   }
 }
 
