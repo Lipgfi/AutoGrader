@@ -156,7 +156,7 @@
       
       <template #footer>
         <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="createUser">创建并发送邮件</el-button>
+        <el-button type="primary" @click="handleCreateUser">创建并发送邮件</el-button>
       </template>
     </el-dialog>
     
@@ -215,7 +215,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createUser } from '../../api/user'
+import { createTeacher } from '../../api/user'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -338,14 +338,14 @@ const generatePassword = () => {
   createForm.password = password
 }
 
-const createUser = async () => {
+const handleCreateUser = async () => {
   if (!createFormRef.value) return
   
   try {
     await createFormRef.value.validate()
     
     // 调用 API 创建教师账号
-    const response = await createUser({
+    const response = await createTeacher({
       username: createForm.username,
       name: createForm.name,
       email: createForm.email,

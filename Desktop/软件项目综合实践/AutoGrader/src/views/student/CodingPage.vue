@@ -710,6 +710,40 @@ const saveDraft = () => {
   ElMessage.success('草稿已保存')
 }
 
+// 生成模拟评测结果
+const generateMockResult = () => {
+  const passedCases = Math.floor(Math.random() * 4) + 1
+  const totalCases = 3
+  const score = Math.round((passedCases / totalCases) * 100)
+  
+  const result = {
+    passed: passedCases === totalCases,
+    score,
+    passedCases,
+    totalCases,
+    runtime: Math.floor(Math.random() * 100) + 20,
+    memory: Math.floor(Math.random() * 5000) + 1000,
+    ranking: Math.floor(Math.random() * 50) + 1,
+    testCases: testcases.value.map((tc, index) => ({
+      input: tc.input,
+      expectedOutput: tc.expectedOutput,
+      actualOutput: index < passedCases ? tc.expectedOutput : '错误输出',
+      passed: index < passedCases
+    }))
+  }
+  
+  submitHistory.value.unshift({
+    id: `S${Date.now()}`,
+    time: new Date().toLocaleString('zh-CN'),
+    status: result.passed ? 'passed' : 'failed',
+    score: result.score,
+    language: selectedLanguage.value,
+    runtime: result.runtime
+  })
+  
+  return result
+}
+
 const submitCode = async () => {
   if (!code.value.trim()) {
     ElMessage.warning('请输入代码')
@@ -717,6 +751,7 @@ const submitCode = async () => {
   }
   
   submitting.value = true
+  showResult.value = false
   
   try {
     // 调用 API 提交代码
@@ -754,70 +789,18 @@ const submitCode = async () => {
       })
     } else {
       // API 失败时使用模拟数据
-      const passedCases = Math.floor(Math.random() * 4) + 1
-      const totalCases = 3
-      const score = Math.round((passedCases / totalCases) * 100)
-      
-      evaluationResult.value = {
-        passed: passedCases === totalCases,
-        score,
-        passedCases,
-        totalCases,
-        runtime: Math.floor(Math.random() * 100) + 20,
-        memory: Math.floor(Math.random() * 5000) + 1000,
-        ranking: Math.floor(Math.random() * 50) + 1,
-        testCases: testcases.value.map((tc, index) => ({
-          input: tc.input,
-          expectedOutput: tc.expectedOutput,
-          actualOutput: index < passedCases ? tc.expectedOutput : '错误输出',
-          passed: index < passedCases
-        }))
-      }
-      
-      submitHistory.value.unshift({
-        id: `S${Date.now()}`,
-        time: new Date().toLocaleString('zh-CN'),
-        status: passedCases === totalCases ? 'passed' : 'failed',
-        score,
-        language: selectedLanguage.value,
-        runtime: evaluationResult.value.runtime
-      })
+      console.warn('[Submit] API 返回失败，使用模拟数据')
+      evaluationResult.value = generateMockResult()
     }
   } catch (error) {
-    console.error('提交失败', error)
+    console.error('[Submit] 提交失败:', error)
+    ElMessage.error('提交失败，已切换到离线评测模式')
     // 使用模拟数据作为降级方案
-    const passedCases = Math.floor(Math.random() * 4) + 1
-    const totalCases = 3
-    const score = Math.round((passedCases / totalCases) * 100)
-    
-    evaluationResult.value = {
-      passed: passedCases === totalCases,
-      score,
-      passedCases,
-      totalCases,
-      runtime: Math.floor(Math.random() * 100) + 20,
-      memory: Math.floor(Math.random() * 5000) + 1000,
-      ranking: Math.floor(Math.random() * 50) + 1,
-      testCases: testcases.value.map((tc, index) => ({
-        input: tc.input,
-        expectedOutput: tc.expectedOutput,
-        actualOutput: index < passedCases ? tc.expectedOutput : '错误输出',
-        passed: index < passedCases
-      }))
-    }
-    
-    submitHistory.value.unshift({
-      id: `S${Date.now()}`,
-      time: new Date().toLocaleString('zh-CN'),
-      status: passedCases === totalCases ? 'passed' : 'failed',
-      score,
-      language: selectedLanguage.value,
-      runtime: evaluationResult.value.runtime
-    })
+    evaluationResult.value = generateMockResult()
+  } finally {
+    submitting.value = false
+    showResult.value = true
   }
-  
-  submitting.value = false
-  showResult.value = true
 }
 
 const loadHistory = (record: any) => {

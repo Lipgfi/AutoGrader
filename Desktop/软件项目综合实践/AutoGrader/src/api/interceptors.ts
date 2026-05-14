@@ -79,7 +79,8 @@ axiosInstance.interceptors.response.use(
 
 // Mock请求处理函数
 const mockRequest = (url: string, method: string, data?: any) => {
-  const fullUrl = '/api' + url
+  // 使用完整的 API 路径进行匹配（包含 /api/v1 前缀）
+  const fullUrl = '/api/v1' + url
   console.log('[Mock] 检查请求:', fullUrl, method)
   
   const mock = allMocks.find(m => {
