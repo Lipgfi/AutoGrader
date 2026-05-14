@@ -213,8 +213,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { createUser } from '../../api/user'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -343,25 +344,40 @@ const createUser = async () => {
   try {
     await createFormRef.value.validate()
     
-    users.value.push({
-      id: Date.now(),
+    // 调用 API 创建教师账号
+    const response = await createUser({
       username: createForm.username,
       name: createForm.name,
-      role: 'teacher',
       email: createForm.email,
-      className: '',
       department: createForm.department,
-      status: 'active',
-      lastLogin: '-',
-      createTime: new Date().toLocaleDateString('zh-CN'),
-      phone: '',
-      loginCount: 0
+      password: createForm.password,
+      role: 'teacher'
     })
     
-    ElMessage.success('教师账号创建成功，激活邮件已发送')
-    createDialogVisible.value = false
+    if (response.code === 200 && response.data) {
+      users.value.push({
+        id: response.data.id || Date.now(),
+        username: createForm.username,
+        name: createForm.name,
+        role: 'teacher',
+        email: createForm.email,
+        className: '',
+        department: createForm.department,
+        status: 'active',
+        lastLogin: '-',
+        createTime: new Date().toLocaleDateString('zh-CN'),
+        phone: '',
+        loginCount: 0
+      })
+      
+      ElMessage.success('教师账号创建成功，激活邮件已发送')
+      createDialogVisible.value = false
+    } else {
+      ElMessage.error('创建教师账号失败')
+    }
   } catch (error) {
-    console.error('表单校验失败', error)
+    console.error('创建失败', error)
+    ElMessage.error('创建教师账号失败')
   }
 }
 

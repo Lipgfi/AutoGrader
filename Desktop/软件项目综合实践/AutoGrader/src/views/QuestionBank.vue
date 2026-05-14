@@ -464,8 +464,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getQuestions, createQuestion, deleteQuestion as deleteQuestionApi, updateQuestion } from '../api/question'
 import { 
   Plus, 
   Upload, 
@@ -687,18 +688,27 @@ const copyQuestion = (row: any) => {
   ElMessage.success(`题目"${row.title}"已复制`)
 }
 
-const deleteQuestion = (row: any) => {
+const deleteQuestion = async (row: any) => {
   ElMessageBox.confirm(`确定要删除题目"${row.title}"吗？`, '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    // 从列表中移除题目
-    const index = questionList.value.findIndex(q => q.id === row.id)
-    if (index > -1) {
-      questionList.value.splice(index, 1)
+  }).then(async () => {
+    try {
+      const response = await deleteQuestionApi(row.id)
+      if (response.code === 200) {
+        const index = questionList.value.findIndex(q => q.id === row.id)
+        if (index > -1) {
+          questionList.value.splice(index, 1)
+        }
+        ElMessage.success('删除成功')
+      } else {
+        ElMessage.error('删除失败')
+      }
+    } catch (error) {
+      console.error('删除失败', error)
+      ElMessage.error('删除失败')
     }
-    ElMessage.success('删除成功')
   })
 }
 
@@ -784,11 +794,76 @@ const resetQuestionForm = () => {
   })
 }
 
-const saveQuestion = () => {
-  questionFormRef.value?.validate((valid: boolean) => {
+const saveQuestion = async () => {
+  questionFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
-      ElMessage.success(isEdit.value ? '修改成功' : '添加成功')
-      questionDialogVisible.value = false
+      try {
+        if (isEdit.value) {
+          const response = await updateQuestion(currentQuestion.value.id, {
+            title: questionForm.title,
+            content: questionForm.content,
+            difficulty: questionForm.difficulty,
+            score: questionForm.score,
+            status: questionForm.status,
+            tags: questionForm.tags,
+            answer: questionForm.answer,
+            languages: questionForm.languages,
+            testCases: questionForm.testCases,
+            options: questionForm.options,
+            correctOption: questionForm.correctOption,
+            fillBlanks: questionForm.fillBlanks
+          })
+          if (response.code === 200) {
+            Object.assign(currentQuestion.value, {
+              title: questionForm.title,
+              content: questionForm.content,
+              difficulty: questionForm.difficulty,
+              score: questionForm.score,
+              status: questionForm.status,
+              tags: questionForm.tags
+            })
+            ElMessage.success('修改成功')
+          } else {
+            ElMessage.error('修改失败')
+          }
+        } else {
+          const response = await createQuestion({
+            title: questionForm.title,
+            content: questionForm.content,
+            difficulty: questionForm.difficulty,
+            score: questionForm.score,
+            status: questionForm.status,
+            tags: questionForm.tags,
+            answer: questionForm.answer,
+            languages: questionForm.languages,
+            testCases: questionForm.testCases,
+            options: questionForm.options,
+            correctOption: questionForm.correctOption,
+            fillBlanks: questionForm.fillBlanks
+          })
+          if (response.code === 200 && response.data) {
+            questionList.value.unshift({
+              id: response.data.id,
+              title: questionForm.title,
+              content: questionForm.content,
+              difficulty: questionForm.difficulty,
+              score: questionForm.score,
+              status: questionForm.status,
+              tags: questionForm.tags,
+              useCount: 0,
+              createTime: new Date().toLocaleString('zh-CN')
+            })
+            ElMessage.success('添加成功')
+          } else {
+            ElMessage.error('添加失败')
+          }
+        }
+        questionDialogVisible.value = false
+        resetQuestionForm()
+      } catch (error) {
+        console.error('保存失败', error)
+        ElMessage.error(isEdit.value ? '修改失败' : '添加失败')
+      }
     }
   })
 }
