@@ -24,6 +24,7 @@ const routes = [
     path: '/student',
     redirect: '/student/courses',
     meta: { requiresAuth: true, role: 'student' },
+    component: () => import('../components/Layout.vue'),
     children: [
       {
         path: 'courses',
@@ -68,6 +69,7 @@ const routes = [
     path: '/teacher',
     redirect: '/teacher/courses',
     meta: { requiresAuth: true, role: 'teacher' },
+    component: () => import('../components/Layout.vue'),
     children: [
       {
         path: 'courses',
@@ -106,6 +108,7 @@ const routes = [
     path: '/admin',
     redirect: '/admin/dashboard',
     meta: { requiresAuth: true, role: 'admin' },
+    component: () => import('../components/Layout.vue'),
     children: [
       {
         path: 'dashboard',

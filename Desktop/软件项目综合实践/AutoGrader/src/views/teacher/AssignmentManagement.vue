@@ -332,8 +332,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getAssignments, createAssignment } from '../../api/assignment'
+import { getCourses } from '../../api/course'
+import { getQuestions } from '../../api/question'
+import { getClasses } from '../../api/class'
 import { Plus, Lock } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -536,35 +540,101 @@ const saveDraft = async () => {
   try {
     await formRef.value.validate()
     
-    const course = courses.value.find(c => c.id === assignmentForm.courseId)
-    const cls = classes.value.find(c => c.id === assignmentForm.classId)
-    const question = questions.value.find(q => q.id === assignmentForm.questionId)
-    
-    assignments.value.push({
-      id: `A${Date.now()}`,
+    // 调用API创建作业
+    const response = await createAssignment({
       title: assignmentForm.title,
       courseId: assignmentForm.courseId,
-      courseName: course?.name || '',
       classId: assignmentForm.classId,
-      className: cls?.name || '',
       questionId: assignmentForm.questionId,
-      questionTitle: question?.title || '',
       deadline: assignmentForm.deadline,
-      status: 'draft',
-      submitRate: 0,
-      passRate: 0,
-      totalStudents: 45,
-      submittedCount: 0,
-      passedCount: 0,
-      avgScore: 0
+      description: assignmentForm.description
     })
     
-    ElMessage.success('草稿保存成功')
-    createDialogVisible.value = false
+    if (response.code === 200 && response.data) {
+      const course = courses.value.find(c => c.id === assignmentForm.courseId)
+      const cls = classes.value.find(c => c.id === assignmentForm.classId)
+      const question = questions.value.find(q => q.id === assignmentForm.questionId)
+      
+      assignments.value.push({
+        id: response.data.id,
+        title: assignmentForm.title,
+        courseId: assignmentForm.courseId,
+        courseName: course?.name || '',
+        classId: assignmentForm.classId,
+        className: cls?.name || '',
+        questionId: assignmentForm.questionId,
+        questionTitle: question?.title || '',
+        deadline: assignmentForm.deadline,
+        description: assignmentForm.description,
+        status: 'draft',
+        submitRate: 0,
+        passRate: 0,
+        totalStudents: 0,
+        submittedCount: 0,
+        passedCount: 0,
+        avgScore: 0
+      })
+      
+      ElMessage.success('草稿保存成功')
+      createDialogVisible.value = false
+    } else {
+      ElMessage.error('保存失败')
+    }
   } catch (error) {
-    console.error('表单校验失败', error)
+    console.error('保存失败', error)
+    ElMessage.error('保存失败')
   }
 }
+
+// 加载数据
+const loadData = async () => {
+  try {
+    // 加载课程
+    const coursesResponse = await getCourses()
+    if (coursesResponse.code === 200 && coursesResponse.data) {
+      courses.value = coursesResponse.data.map((c: any) => ({
+        id: c.id,
+        name: c.name
+      }))
+    }
+    
+    // 加载班级
+    const classesResponse = await getClasses()
+    if (classesResponse.code === 200 && classesResponse.data) {
+      classes.value = classesResponse.data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        courseId: c.courseId
+      }))
+    }
+    
+    // 加载题目
+    const questionsResponse = await getQuestions()
+    if (questionsResponse.code === 200 && questionsResponse.data) {
+      questions.value = questionsResponse.data.map((q: any) => ({
+        id: q.id,
+        title: q.title
+      }))
+    }
+    
+    // 加载作业
+    const assignmentsResponse = await getAssignments()
+    if (assignmentsResponse.code === 200 && assignmentsResponse.data) {
+      assignments.value = assignmentsResponse.data.map((a: any) => ({
+        ...a,
+        courseName: courses.value.find(c => c.id === a.courseId)?.name || '',
+        className: classes.value.find(c => c.id === a.classId)?.name || '',
+        questionTitle: questions.value.find(q => q.id === a.questionId)?.title || ''
+      }))
+    }
+  } catch (error) {
+    console.error('加载数据失败', error)
+  }
+}
+
+onMounted(() => {
+  loadData()
+})
 
 const saveAssignment = async () => {
   if (!formRef.value) return

@@ -344,9 +344,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive } from 'vue'
+import { ref, computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
+import { getCourses, createCourse } from '../../api/course'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, 
@@ -571,22 +572,63 @@ const saveCourse = async () => {
       Object.assign(editingCourse.value, courseForm)
       ElMessage.success('课程更新成功')
     } else {
-      courses.value.push({
-        id: `C${Date.now()}`,
-        ...courseForm,
-        status: 'active',
-        classCount: 0,
-        assignmentCount: 0,
-        classes: []
+      // 调用API创建课程
+      const response = await createCourse({
+        name: courseForm.name,
+        code: courseForm.code,
+        semester: courseForm.semester,
+        description: courseForm.description
       })
-      ElMessage.success('课程创建成功')
+      
+      if (response.code === 200 && response.data) {
+        const newCourse = response.data
+        courses.value.push({
+          id: newCourse.id,
+          name: newCourse.name,
+          code: newCourse.code,
+          semester: newCourse.semester,
+          description: newCourse.description,
+          color: courseForm.color,
+          status: 'active',
+          classCount: 0,
+          assignmentCount: 0,
+          classes: []
+        })
+        ElMessage.success('课程创建成功')
+      } else {
+        ElMessage.error('课程创建失败')
+      }
     }
     
     courseDialogVisible.value = false
   } catch (error) {
-    console.error('表单校验失败', error)
+    console.error('课程保存失败', error)
+    ElMessage.error('课程保存失败')
   }
 }
+
+// 加载课程列表
+const loadCourses = async () => {
+  try {
+    const response = await getCourses()
+    if (response.code === 200 && response.data) {
+      courses.value = response.data.map((course: any) => ({
+        ...course,
+        color: course.color || '#165DFF',
+        status: course.status || 'active',
+        classCount: course.classCount || 0,
+        assignmentCount: course.assignmentCount || 0,
+        classes: course.classes || []
+      }))
+    }
+  } catch (error) {
+    console.error('加载课程失败', error)
+  }
+}
+
+onMounted(() => {
+  loadCourses()
+})
 
 const manageClasses = (course: any) => {
   selectedCourseId.value = course.id
