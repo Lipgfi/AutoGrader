@@ -10,9 +10,15 @@ export const getSubmissionDetail = async (submissionId: string) => {
   return await request.get(`/submissions/${submissionId}`)
 }
 
-// 创建提交
-export const createSubmission = async (data: any) => {
-  return await request.post('/submissions', data)
+// 创建提交（调用B2模块）
+export const createSubmission = async (data: {
+  question_id: string
+  assignment_id: string
+  code: string
+  language: string
+  student_user_id: string
+}) => {
+  return await request.post('/submission', data)
 }
 
 // 获取作业全部提交

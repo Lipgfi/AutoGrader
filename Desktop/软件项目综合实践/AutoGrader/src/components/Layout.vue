@@ -32,7 +32,7 @@
           class="logout-btn"
           @click="handleLogout"
         >
-          <el-icon><LogOut /></el-icon>
+          <el-icon><ArrowRight /></el-icon>
           <span>退出登录</span>
         </el-button>
       </div>
@@ -48,7 +48,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { User, LogOut, BookOpen, Document, FileCode, BarChart, Settings, Dashboard, Users } from '@element-plus/icons-vue'
+import { User, ArrowRight, HomeFilled, Document, Files, PieChart, Setting } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -68,21 +68,21 @@ const roleName = computed(() => {
 const menuItems = computed(() => {
   const menus: Record<string, any[]> = {
     student: [
-      { path: '/student/courses', label: '我的课程', icon: BookOpen },
-      { path: '/student/grades', label: '成绩总览', icon: BarChart },
+      { path: '/student/courses', label: '我的课程', icon: HomeFilled },
+      { path: '/student/grades', label: '成绩总览', icon: PieChart },
       { path: '/student/profile', label: '个人信息', icon: User }
     ],
     teacher: [
-      { path: '/teacher/courses', label: '课程管理', icon: BookOpen },
+      { path: '/teacher/courses', label: '课程管理', icon: HomeFilled },
       { path: '/teacher/assignments', label: '作业管理', icon: Document },
-      { path: '/teacher/questions', label: '题库管理', icon: FileCode },
-      { path: '/teacher/grades', label: '成绩管理', icon: BarChart }
+      { path: '/teacher/questions', label: '题库管理', icon: Files },
+      { path: '/teacher/grades', label: '成绩管理', icon: PieChart }
     ],
     admin: [
-      { path: '/admin/dashboard', label: '控制台', icon: Dashboard },
-      { path: '/admin/users', label: '用户管理', icon: Users },
+      { path: '/admin/dashboard', label: '控制台', icon: HomeFilled },
+      { path: '/admin/users', label: '用户管理', icon: User },
       { path: '/admin/students', label: '学生管理', icon: User },
-      { path: '/admin/settings', label: '系统设置', icon: Settings }
+      { path: '/admin/settings', label: '系统设置', icon: Setting }
     ]
   }
   return menus[role.value] || []

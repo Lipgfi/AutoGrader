@@ -7,8 +7,8 @@
       </div>
       <div class="header-right">
         <span class="current-time">{{ currentTime }}</span>
-        <el-button 
-          icon="LogOut" 
+        <el-button
+          icon="ArrowRight"
           @click="handleLogout"
           class="logout-btn"
         >
@@ -312,7 +312,7 @@ import {
   Warning,
   SuccessFilled,
   QuestionFilled,
-  LogOut
+  ArrowRight
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

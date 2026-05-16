@@ -2,7 +2,7 @@ import { MockMethod } from 'vite-plugin-mock'
 
 export default [
   {
-    url: '/api/courses',
+    url: '/api/v1/courses',
     method: 'get',
     response: () => {
       return {
@@ -41,7 +41,7 @@ export default [
     }
   },
   {
-    url: '/api/courses/:id',
+    url: '/api/v1/courses/:id',
     method: 'get',
     response: ({ url }: { url: string }) => {
       const id = url.split('/').pop()

@@ -108,7 +108,7 @@
               type="danger" 
               link 
               size="small" 
-              @click="deleteStudent(scope.row)"
+              @click="handleDeleteStudent(scope.row)"
             >
               删除
             </el-button>
@@ -220,7 +220,7 @@ import {
   Download, 
   Plus
 } from '@element-plus/icons-vue'
-import { studentApi } from '../../services/studentApi'
+import { getStudents, addStudent, updateStudent, deleteStudent as deleteStudentApi, importStudents, resetStudentPassword } from '../../api/student'
 import { usePermissions } from '../../services/permissionService'
 
 // 模拟Excel解析功能
@@ -337,7 +337,7 @@ const students = ref<any[]>([])
 // 加载学生数据
 const loadStudents = async () => {
   try {
-    const result = await studentApi.getStudents({
+    const result = await getStudents({
       keyword: searchKeyword.value,
       major: filterMajor.value,
       grade: filterGrade.value,
@@ -345,8 +345,8 @@ const loadStudents = async () => {
       page: currentPage.value,
       pageSize: pageSize.value
     })
-    students.value = result.data
-    total.value = result.total
+    students.value = result.data?.list || result.data || []
+    total.value = result.data?.total || result.total || 100
   } catch (error) {
     ElMessage.error('加载学生数据失败')
   }
@@ -441,10 +441,11 @@ const editStudent = (row: any) => {
 const saveStudent = async () => {
   try {
     if (isEdit.value) {
-      await studentApi.updateStudent(form.value.id, form.value)
+      await updateStudent(form.value.id, form.value)
       ElMessage.success('学生信息编辑成功')
     } else {
-      const newStudent = await studentApi.addStudent(form.value)
+      const result = await addStudent(form.value)
+      const newStudent = result.data || form.value
       students.value.push(newStudent)
       ElMessage.success('学生添加成功')
     }
@@ -458,7 +459,7 @@ const saveStudent = async () => {
 const toggleStatus = async (row: any) => {
   try {
     const newStatus = row.status === 'active' ? 'inactive' : 'active'
-    await studentApi.updateStudent(row.id, { status: newStatus })
+    await updateStudent(row.id, { status: newStatus })
     row.status = newStatus
     ElMessage.success(`学生状态已${newStatus === 'active' ? '激活' : '禁用'}`)
   } catch (error) {
@@ -466,14 +467,14 @@ const toggleStatus = async (row: any) => {
   }
 }
 
-const deleteStudent = (row: any) => {
+const handleDeleteStudent = (row: any) => {
   ElMessageBox.confirm('确定要删除该学生吗？', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(async () => {
     try {
-      await studentApi.deleteStudent(row.id)
+      await deleteStudentApi(row.id)
       const index = students.value.findIndex(s => s.id === row.id)
       if (index > -1) {
         students.value.splice(index, 1)

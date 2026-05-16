@@ -316,7 +316,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getQuestionDetail } from '../../api/question'
-import { createSubmission } from '../../api/submission'
+import { evaluateSubmission, getB3QuestionCases } from '../../api/b3'
 import { 
   ArrowLeft, 
   Clock, 
@@ -509,6 +509,35 @@ const loadQuestion = async () => {
     const questionId = route.params.id || 'Q001'
     console.log('[CodingPage] 请求题目详情:', questionId)
     
+    // 优先尝试 B3 题库接口
+    try {
+      const b3Response = await getB3QuestionCases(questionId)
+      if (b3Response && b3Response.data) {
+        const questionData = b3Response.data
+        currentProblem.value = {
+          id: questionId,
+          title: questionData.title || `题目 ${questionId}`,
+          difficulty: questionData.difficulty || '中等',
+          score: questionData.score || 100,
+          description: questionData.description || '',
+          inputFormat: questionData.input_format || '',
+          outputFormat: questionData.output_format || '',
+          testcases: (questionData.test_cases || []).map((tc: any, index: number) => ({
+            id: index + 1,
+            input: tc.input || '',
+            expectedOutput: tc.expected_output || tc.output || ''
+          }))
+        }
+        testcases.value = currentProblem.value.testcases
+        selectedTestcase.value = testcases.value[0]?.id || 1
+        console.log('[CodingPage] 从 B3 加载题目成功:', questionId)
+        return
+      }
+    } catch (b3Error) {
+      console.warn('[CodingPage] B3 题库接口不可用，尝试 B4 接口:', b3Error)
+    }
+    
+    // 降级到 B4 题库接口
     const response = await getQuestionDetail(questionId)
     
     if (response.code === 200 && response.data) {
@@ -525,7 +554,7 @@ const loadQuestion = async () => {
       }
       testcases.value = question.testCases || []
       selectedTestcase.value = testcases.value[0]?.id || 1
-      console.log('[CodingPage] 加载题目成功:', question.title)
+      console.log('[CodingPage] 从 B4 加载题目成功:', question.title)
     } else {
       ElMessage.warning('未找到该题目，显示默认题目')
       loadFromLocal()
@@ -754,47 +783,70 @@ const submitCode = async () => {
   showResult.value = false
   
   try {
-    // 调用 API 提交代码
-    const response = await createSubmission({
-      questionId: questionId.value,
-      code: code.value,
+    // 构建 B3 评测请求
+    const submissionId = `SUB_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    // 调用 B3 评测服务
+    const response = await evaluateSubmission({
+      question_id: questionId.value,
+      submitted_code: code.value,
+      submission_id: submissionId,
       language: selectedLanguage.value
     })
     
-    if (response.code === 200 && response.data) {
-      const result = response.data
+    console.log('[B3 Evaluation] 评测结果:', response)
+    
+    // 处理 B3 响应格式
+    if (response) {
       evaluationResult.value = {
-        passed: result.passed,
-        score: result.score,
-        passedCases: result.passedCases,
-        totalCases: result.totalCases,
-        runtime: result.runtime,
-        memory: result.memory,
-        ranking: result.ranking || Math.floor(Math.random() * 50) + 1,
-        testCases: result.testCases || testcases.value.map((tc, index) => ({
+        passed: response.passed_count === response.total_count,
+        score: response.overall_score,
+        passedCases: response.passed_count,
+        totalCases: response.total_count,
+        runtime: 0,
+        memory: 0,
+        ranking: Math.floor(Math.random() * 50) + 1,
+        testCases: response.case_results?.map((tc, index) => ({
+          input: tc.input || '',
+          expectedOutput: tc.expected_output || '',
+          actualOutput: tc.actual_output || '',
+          passed: tc.passed
+        })) || testcases.value.map((tc, index) => ({
           input: tc.input,
           expectedOutput: tc.expectedOutput,
-          actualOutput: index < (result.passedCases || 0) ? tc.expectedOutput : '错误输出',
-          passed: index < (result.passedCases || 0)
-        }))
+          actualOutput: '',
+          passed: false
+        })),
+        staticIssues: response.static_issues || [],
+        overallComment: response.overall_comment || ''
       }
       
       submitHistory.value.unshift({
-        id: result.id || `S${Date.now()}`,
+        id: submissionId,
         time: new Date().toLocaleString('zh-CN'),
-        status: result.passed ? 'passed' : 'failed',
-        score: result.score,
+        status: response.passed_count === response.total_count ? 'passed' : 'failed',
+        score: response.overall_score,
         language: selectedLanguage.value,
-        runtime: result.runtime
+        runtime: 0
       })
+      
+      ElMessage.success(`评测完成：${response.passed_count}/${response.total_count} 通过`)
     } else {
-      // API 失败时使用模拟数据
-      console.warn('[Submit] API 返回失败，使用模拟数据')
+      console.warn('[Submit] B3 返回格式异常，使用模拟数据')
       evaluationResult.value = generateMockResult()
     }
-  } catch (error) {
-    console.error('[Submit] 提交失败:', error)
-    ElMessage.error('提交失败，已切换到离线评测模式')
+  } catch (error: any) {
+    console.error('[Submit] 评测失败:', error)
+    
+    // 根据错误类型显示不同提示
+    if (error.code === 'ECONNREFUSED' || error.message?.includes('Network Error')) {
+      ElMessage.error('无法连接评测服务(B3)，请检查服务是否启动')
+    } else if (error.response?.status === 404) {
+      ElMessage.error('题目不存在或评测服务配置错误')
+    } else {
+      ElMessage.error(error.response?.data?.message || '评测失败，已切换到离线模式')
+    }
+    
     // 使用模拟数据作为降级方案
     evaluationResult.value = generateMockResult()
   } finally {

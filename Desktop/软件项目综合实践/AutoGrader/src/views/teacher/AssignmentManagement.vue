@@ -551,32 +551,10 @@ const saveDraft = async () => {
     })
     
     if (response.code === 200 && response.data) {
-      const course = courses.value.find(c => c.id === assignmentForm.courseId)
-      const cls = classes.value.find(c => c.id === assignmentForm.classId)
-      const question = questions.value.find(q => q.id === assignmentForm.questionId)
-      
-      assignments.value.push({
-        id: response.data.id,
-        title: assignmentForm.title,
-        courseId: assignmentForm.courseId,
-        courseName: course?.name || '',
-        classId: assignmentForm.classId,
-        className: cls?.name || '',
-        questionId: assignmentForm.questionId,
-        questionTitle: question?.title || '',
-        deadline: assignmentForm.deadline,
-        description: assignmentForm.description,
-        status: 'draft',
-        submitRate: 0,
-        passRate: 0,
-        totalStudents: 0,
-        submittedCount: 0,
-        passedCount: 0,
-        avgScore: 0
-      })
-      
       ElMessage.success('草稿保存成功')
       createDialogVisible.value = false
+      // 刷新作业列表
+      await loadData()
     } else {
       ElMessage.error('保存失败')
     }

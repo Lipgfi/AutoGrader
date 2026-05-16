@@ -13,8 +13,8 @@
           clearable
           class="search-input"
         />
-        <el-button 
-          icon="LogOut" 
+        <el-button
+          icon="ArrowRight"
           @click="handleLogout"
           class="logout-btn"
         >
@@ -177,11 +177,11 @@ import {
   Grid, 
   List, 
   User, 
-  School, 
-  Calendar, 
-  Bell, 
+  School,
+  Calendar,
+  Bell,
   Check,
-  LogOut
+  ArrowRight
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

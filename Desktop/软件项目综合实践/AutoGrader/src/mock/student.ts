@@ -2,7 +2,7 @@ import { MockMethod } from 'vite-plugin-mock'
 
 export default [
   {
-    url: '/api/students',
+    url: '/api/v1/students',
     method: 'get',
     response: () => {
       return {
@@ -49,7 +49,7 @@ export default [
     }
   },
   {
-    url: '/api/students/import',
+    url: '/api/v1/students/import',
     method: 'post',
     response: () => {
       return {

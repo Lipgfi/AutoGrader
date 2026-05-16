@@ -2,7 +2,7 @@ import { MockMethod } from 'vite-plugin-mock'
 
 export default [
   {
-    url: '/api/assignments',
+    url: '/api/v1/assignments',
     method: 'get',
     response: () => {
       return {
@@ -44,7 +44,7 @@ export default [
     }
   },
   {
-    url: '/api/assignments/:id',
+    url: '/api/v1/assignments/:id',
     method: 'get',
     response: ({ url }: { url: string }) => {
       const id = url.split('/').pop()
@@ -81,7 +81,7 @@ export default [
     }
   },
   {
-    url: '/api/assignments/:id/submit',
+    url: '/api/v1/assignments/:id/submit',
     method: 'post',
     response: () => {
       return {

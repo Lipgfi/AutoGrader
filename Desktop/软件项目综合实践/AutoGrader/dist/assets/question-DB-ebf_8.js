@@ -1,0 +1,1 @@
+import{r as s}from"./interceptors-DVjXULaD.js";const n=async t=>await s.get("/questions",t),o=async t=>await s.get(`/questions/${t}`),u=async t=>await s.post("/questions",t),i=async(t,e)=>await s.put(`/questions/${t}`,e),r=async t=>await s.delete(`/questions/${t}`);export{n as a,u as c,r as d,o as g,i as u};

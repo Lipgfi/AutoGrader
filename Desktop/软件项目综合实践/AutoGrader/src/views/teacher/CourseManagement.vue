@@ -10,8 +10,8 @@
           <el-icon><Plus /></el-icon>
           新建课程
         </el-button>
-        <el-button 
-          icon="LogOut" 
+        <el-button
+          icon="ArrowRight"
           @click="handleLogout"
           class="logout-btn"
         >
@@ -352,11 +352,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, 
   MoreFilled, 
-  User, 
-  Document, 
+  User,
+  Document,
   Calendar,
   UploadFilled,
-  LogOut
+  ArrowRight
 } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -581,20 +581,9 @@ const saveCourse = async () => {
       })
       
       if (response.code === 200 && response.data) {
-        const newCourse = response.data
-        courses.value.push({
-          id: newCourse.id,
-          name: newCourse.name,
-          code: newCourse.code,
-          semester: newCourse.semester,
-          description: newCourse.description,
-          color: courseForm.color,
-          status: 'active',
-          classCount: 0,
-          assignmentCount: 0,
-          classes: []
-        })
         ElMessage.success('课程创建成功')
+        // 刷新课程列表
+        await loadCourses()
       } else {
         ElMessage.error('课程创建失败')
       }

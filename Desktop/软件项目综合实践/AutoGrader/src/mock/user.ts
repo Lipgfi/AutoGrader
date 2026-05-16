@@ -59,7 +59,7 @@ let nextUserId = 4
 
 export default [
   {
-    url: '/api/auth/login',
+    url: '/api/v1/auth/login',
     method: 'post',
     response: ({ body }: { body: any }) => {
       console.log('[Mock] 收到登录请求:', body)
@@ -107,7 +107,7 @@ export default [
     }
   },
   {
-    url: '/api/auth/register',
+    url: '/api/v1/auth/register',
     method: 'post',
     response: ({ body }: { body: any }) => {
       console.log('[Mock] 收到注册请求:', body)
@@ -197,7 +197,7 @@ export default [
     }
   },
   {
-    url: '/api/user/info',
+    url: '/api/v1/user/info',
     method: 'get',
     response: () => {
       return {
