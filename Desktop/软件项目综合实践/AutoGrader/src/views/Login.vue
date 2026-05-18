@@ -32,15 +32,15 @@
         <div class="role-tabs">
           <div class="role-label">选择身份</div>
           <el-radio-group v-model="loginForm.role" class="role-group">
-            <el-radio-button label="student">
+            <el-radio-button value="student">
               <el-icon><User /></el-icon>
               <span>学生</span>
             </el-radio-button>
-            <el-radio-button label="teacher">
+            <el-radio-button value="teacher">
               <el-icon><Reading /></el-icon>
               <span>教师</span>
             </el-radio-button>
-            <el-radio-button label="admin">
+            <el-radio-button value="admin">
               <el-icon><Setting /></el-icon>
               <span>管理员</span>
             </el-radio-button>
@@ -159,18 +159,18 @@ const captchaImage = ref('')
 
 const refreshCaptcha = async () => {
   try {
+    console.log('[Captcha] 尝试从后端获取验证码...')
     const response = await getCaptcha()
     if (response.code === 200 && response.data) {
       captchaId.value = response.data.captcha_id
       captchaImage.value = response.data.captcha_image
+      console.log('[Captcha] 成功从后端获取验证码')
     } else {
-      console.error('[Captcha] 获取验证码失败:', response.message)
-      // 降级为本地生成验证码
+      console.warn('[Captcha] 后端返回异常，降级为本地生成:', response?.message || '未知错误')
       generateLocalCaptcha()
     }
   } catch (error) {
-    console.error('[Captcha] 获取验证码异常:', error)
-    // 降级为本地生成验证码
+    console.warn('[Captcha] 后端服务不可用，降级为本地生成验证码:', error)
     generateLocalCaptcha()
   }
 }
@@ -181,29 +181,118 @@ const generateLocalCaptcha = () => {
   for (let i = 0; i < 4; i++) {
     code += chars[Math.floor(Math.random() * chars.length)]
   }
-  // 创建简单的文字验证码图片（降级方案）
-  captchaImage.value = ''
+  
   captchaId.value = 'local_' + Date.now()
   const canvas = document.createElement('canvas')
   canvas.width = 120
   canvas.height = 40
   const ctx = canvas.getContext('2d')
+  
   if (ctx) {
+    // 绘制背景
     ctx.fillStyle = '#f5f7fa'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.font = '24px Arial'
+    
+    // 绘制干扰线
+    ctx.strokeStyle = '#e0e0e0'
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath()
+      ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height)
+      ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height)
+      ctx.stroke()
+    }
+    
+    // 绘制验证码字符
+    ctx.font = 'bold 24px Arial'
+    ctx.textBaseline = 'middle'
+    
     for (let i = 0; i < code.length; i++) {
-      ctx.fillStyle = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+      ctx.fillStyle = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`
       ctx.save()
-      ctx.translate(30 + i * 25, 28)
-      ctx.rotate((Math.random() - 0.5) * 0.3)
+      ctx.translate(15 + i * 26, canvas.height / 2)
+      ctx.rotate((Math.random() - 0.5) * 0.4)
       ctx.fillText(code[i], 0, 0)
       ctx.restore()
     }
+    
+    // 绘制干扰点
+    ctx.fillStyle = '#ccc'
+    for (let i = 0; i < 20; i++) {
+      ctx.beginPath()
+      ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 1, 0, Math.PI * 2)
+      ctx.fill()
+    }
+    
+    // 设置验证码图片（最后才设置，避免中间状态显示空白）
     captchaImage.value = canvas.toDataURL()
+    
     // 将验证码存储在本地用于校验（仅降级方案使用）
     localStorage.setItem('local_captcha_' + captchaId.value, code)
+    console.log('[Captcha] 本地验证码生成成功:', code)
   }
+}
+
+// 校验本地验证码
+const validateLocalCaptcha = (): boolean => {
+  if (!captchaId.value.startsWith('local_')) {
+    // 不是本地验证码，不需要本地校验
+    return true
+  }
+  
+  const storedCode = localStorage.getItem('local_captcha_' + captchaId.value)
+  const inputCode = loginForm.captcha.toUpperCase()
+  
+  if (!storedCode || inputCode !== storedCode) {
+    ElMessage.error('验证码错误，请重新输入')
+    refreshCaptcha()
+    return false
+  }
+  
+  // 清除已使用的验证码
+  localStorage.removeItem('local_captcha_' + captchaId.value)
+  return true
+}
+
+// 模拟登录（用于演示，后端服务不可用时）
+const mockLogin = () => {
+  console.log('[Login] 使用模拟登录')
+  
+  const mockToken = 'mock_token_' + Date.now()
+  const mockUserInfo = {
+    id: 'mock_user_id',
+    username: loginForm.username,
+    role: loginForm.role,
+    realName: loginForm.username
+  }
+  
+  userStore.setToken(mockToken)
+  userStore.setUserInfo(mockUserInfo)
+  
+  if (loginForm.remember) {
+    localStorage.setItem('autograder_remember', JSON.stringify({
+      username: loginForm.username,
+      role: loginForm.role
+    }))
+  } else {
+    localStorage.removeItem('autograder_remember')
+  }
+  
+  ElMessage.success('登录成功（模拟模式）')
+  
+  let redirectPath = '/student/courses'
+  switch (loginForm.role) {
+    case 'student':
+      redirectPath = '/student/courses'
+      break
+    case 'teacher':
+      redirectPath = '/teacher/courses'
+      break
+    case 'admin':
+      redirectPath = '/admin/dashboard'
+      break
+  }
+  
+  router.push(redirectPath)
 }
 
 const handleLogin = async () => {
@@ -211,6 +300,11 @@ const handleLogin = async () => {
   
   try {
     await loginFormRef.value.validate()
+    
+    // 如果是本地验证码，先进行本地校验
+    if (!validateLocalCaptcha()) {
+      return
+    }
     
     loading.value = true
     
@@ -296,7 +390,31 @@ const handleLogin = async () => {
     }
   } catch (error: any) {
     console.error('[Login] 登录失败:', error)
-    ElMessage.error(error.message || '登录失败，请检查网络')
+    
+    // 检查是否是网络错误（后端服务未启动）
+    if (error.message?.includes('Network Error') || 
+        error.message?.includes('ERR_CONNECTION_REFUSED') ||
+        error.response?.status === 0) {
+      console.warn('[Login] 后端服务不可用，尝试模拟登录...')
+      
+      // 询问用户是否使用模拟模式
+      ElMessage.confirm(
+        '后端服务未启动，是否使用模拟登录模式进行演示？',
+        '服务不可用',
+        {
+          confirmButtonText: '使用模拟模式',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      ).then(() => {
+        mockLogin()
+      }).catch(() => {
+        ElMessage.info('已取消模拟登录')
+      })
+    } else {
+      ElMessage.error(error.response?.data?.message || error.message || '登录失败')
+    }
+    
     refreshCaptcha()
   } finally {
     loading.value = false
