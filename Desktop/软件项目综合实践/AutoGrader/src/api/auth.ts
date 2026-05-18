@@ -1,8 +1,18 @@
 import { request } from './interceptors'
 import type { UserLoginRequest, UserRegisterRequest, UserInfo, ApiResponse } from '../types/api'
 
+// 获取验证码
+export const getCaptcha = async (): Promise<ApiResponse<{ captcha_id: string; captcha_image: string }>> => {
+  return await request.get('/auth/captcha')
+}
+
+// 校验验证码
+export const verifyCaptcha = async (data: { captcha_id: string; captcha_code: string }): Promise<ApiResponse> => {
+  return await request.post('/auth/captcha/verify', data)
+}
+
 // 登录
-export const login = async (data: UserLoginRequest): Promise<ApiResponse<{ token: string; user?: UserInfo; role?: string; userId?: string }>> => {
+export const login = async (data: UserLoginRequest & { captcha_id?: string }): Promise<ApiResponse<{ token: string; user?: UserInfo; role?: string; userId?: string }>> => {
   return await request.post('/auth/login', data)
 }
 

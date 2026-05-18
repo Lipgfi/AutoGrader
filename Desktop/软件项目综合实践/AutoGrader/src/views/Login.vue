@@ -70,20 +70,19 @@
         
         <el-form-item label="验证码" prop="captcha">
           <div class="captcha-container">
-            <el-input
-              v-model="loginForm.captcha"
-              placeholder="请输入验证码"
-              prefix-icon="Picture"
-              size="large"
-              class="captcha-input"
-              @keyup.enter="handleLogin"
-            />
-            <div class="captcha-image" @click="refreshCaptcha" :title="'点击刷新验证码'">
-              <span class="captcha-char" v-for="(char, index) in captchaCode.split('')" :key="index" :style="{ transform: `rotate(${Math.random() * 20 - 10}deg)` }">
-                {{ char }}
-              </span>
-            </div>
+          <el-input
+            v-model="loginForm.captcha"
+            placeholder="请输入验证码"
+            prefix-icon="Picture"
+            size="large"
+            class="captcha-input"
+            @keyup.enter="handleLogin"
+          />
+          <div class="captcha-image" @click="refreshCaptcha" :title="'点击刷新验证码'">
+            <img v-if="captchaImage" :src="captchaImage" alt="验证码" class="captcha-img" />
+            <span v-else class="captcha-loading">加载中...</span>
           </div>
+        </div>
         </el-form-item>
         
         <div class="form-options">
@@ -124,7 +123,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Reading, Setting } from '@element-plus/icons-vue'
-import { login } from '../api/auth'
+import { login, getCaptcha } from '../api/auth'
 import { useUserStore } from '../stores/user'
 
 const router = useRouter()
@@ -155,19 +154,56 @@ const loginRules = {
   ]
 }
 
-const captchaCode = ref('')
+const captchaId = ref('')
+const captchaImage = ref('')
 
-const generateCaptcha = () => {
+const refreshCaptcha = async () => {
+  try {
+    const response = await getCaptcha()
+    if (response.code === 200 && response.data) {
+      captchaId.value = response.data.captcha_id
+      captchaImage.value = response.data.captcha_image
+    } else {
+      console.error('[Captcha] 获取验证码失败:', response.message)
+      // 降级为本地生成验证码
+      generateLocalCaptcha()
+    }
+  } catch (error) {
+    console.error('[Captcha] 获取验证码异常:', error)
+    // 降级为本地生成验证码
+    generateLocalCaptcha()
+  }
+}
+
+const generateLocalCaptcha = () => {
   const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'
   let code = ''
   for (let i = 0; i < 4; i++) {
     code += chars[Math.floor(Math.random() * chars.length)]
   }
-  return code
-}
-
-const refreshCaptcha = () => {
-  captchaCode.value = generateCaptcha()
+  // 创建简单的文字验证码图片（降级方案）
+  captchaImage.value = ''
+  captchaId.value = 'local_' + Date.now()
+  const canvas = document.createElement('canvas')
+  canvas.width = 120
+  canvas.height = 40
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.fillStyle = '#f5f7fa'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.font = '24px Arial'
+    for (let i = 0; i < code.length; i++) {
+      ctx.fillStyle = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+      ctx.save()
+      ctx.translate(30 + i * 25, 28)
+      ctx.rotate((Math.random() - 0.5) * 0.3)
+      ctx.fillText(code[i], 0, 0)
+      ctx.restore()
+    }
+    captchaImage.value = canvas.toDataURL()
+    // 将验证码存储在本地用于校验（仅降级方案使用）
+    localStorage.setItem('local_captcha_' + captchaId.value, code)
+  }
 }
 
 const handleLogin = async () => {
@@ -176,30 +212,37 @@ const handleLogin = async () => {
   try {
     await loginFormRef.value.validate()
     
-    if (loginForm.captcha.toUpperCase() !== captchaCode.value) {
-      ElMessage.error('验证码错误')
-      refreshCaptcha()
-      return
-    }
-    
     loading.value = true
     
     console.log('[Login] 发送登录请求:', {
       username: loginForm.username,
       password: loginForm.password,
-      role: loginForm.role
+      role: loginForm.role,
+      captcha_id: captchaId.value
     })
     
     const response = await login({
       username: loginForm.username,
       password: loginForm.password,
-      role: loginForm.role
+      role: loginForm.role,
+      captcha_id: captchaId.value
     })
     
     console.log('[Login] 收到登录响应:', response)
     
     if (response.code === 200 && response.data) {
       const { token, user, role, userId } = response.data
+      
+      // 获取后端返回的实际角色
+      const backendRole = user?.role || role
+      console.log('[Login] 后端返回的角色:', backendRole, '用户选择的角色:', loginForm.role)
+      
+      // 角色校验：后端返回的角色必须与用户选择的角色一致
+      if (backendRole && backendRole !== loginForm.role) {
+        ElMessage.error(`身份验证失败：您选择的是${loginForm.role === 'student' ? '学生' : loginForm.role === 'teacher' ? '教师' : '管理员'}身份，但系统识别您为${backendRole === 'student' ? '学生' : backendRole === 'teacher' ? '教师' : '管理员'}身份`)
+        refreshCaptcha()
+        return
+      }
       
       // 保存token
       userStore.setToken(token)
@@ -220,7 +263,7 @@ const handleLogin = async () => {
       if (loginForm.remember) {
         localStorage.setItem('autograder_remember', JSON.stringify({
           username: loginForm.username,
-          role: loginForm.role
+          role: backendRole || loginForm.role
         }))
       } else {
         localStorage.removeItem('autograder_remember')
@@ -229,7 +272,7 @@ const handleLogin = async () => {
       ElMessage.success('登录成功')
       
       // 根据返回的用户角色跳转，兼容两种响应格式
-      const userRole = user?.role || role || loginForm.role
+      const userRole = backendRole || loginForm.role
       console.log('[Login] 用户角色:', userRole)
       
       let redirectPath = '/student/courses'
@@ -483,6 +526,18 @@ onMounted(() => {
   font-size: 20px;
   color: var(--primary-color);
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.captcha-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--border-radius-sm);
+}
+
+.captcha-loading {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
 }
 
 .form-options {

@@ -739,39 +739,7 @@ const saveDraft = () => {
   ElMessage.success('草稿已保存')
 }
 
-// 生成模拟评测结果
-const generateMockResult = () => {
-  const passedCases = Math.floor(Math.random() * 4) + 1
-  const totalCases = 3
-  const score = Math.round((passedCases / totalCases) * 100)
-  
-  const result = {
-    passed: passedCases === totalCases,
-    score,
-    passedCases,
-    totalCases,
-    runtime: Math.floor(Math.random() * 100) + 20,
-    memory: Math.floor(Math.random() * 5000) + 1000,
-    ranking: Math.floor(Math.random() * 50) + 1,
-    testCases: testcases.value.map((tc, index) => ({
-      input: tc.input,
-      expectedOutput: tc.expectedOutput,
-      actualOutput: index < passedCases ? tc.expectedOutput : '错误输出',
-      passed: index < passedCases
-    }))
-  }
-  
-  submitHistory.value.unshift({
-    id: `S${Date.now()}`,
-    time: new Date().toLocaleString('zh-CN'),
-    status: result.passed ? 'passed' : 'failed',
-    score: result.score,
-    language: selectedLanguage.value,
-    runtime: result.runtime
-  })
-  
-  return result
-}
+
 
 const submitCode = async () => {
   if (!code.value.trim()) {
@@ -832,8 +800,8 @@ const submitCode = async () => {
       
       ElMessage.success(`评测完成：${response.passed_count}/${response.total_count} 通过`)
     } else {
-      console.warn('[Submit] B3 返回格式异常，使用模拟数据')
-      evaluationResult.value = generateMockResult()
+      console.warn('[Submit] B3 返回格式异常')
+      ElMessage.error('评测结果格式异常')
     }
   } catch (error: any) {
     console.error('[Submit] 评测失败:', error)
@@ -844,11 +812,8 @@ const submitCode = async () => {
     } else if (error.response?.status === 404) {
       ElMessage.error('题目不存在或评测服务配置错误')
     } else {
-      ElMessage.error(error.response?.data?.message || '评测失败，已切换到离线模式')
+      ElMessage.error(error.response?.data?.message || '评测失败')
     }
-    
-    // 使用模拟数据作为降级方案
-    evaluationResult.value = generateMockResult()
   } finally {
     submitting.value = false
     showResult.value = true

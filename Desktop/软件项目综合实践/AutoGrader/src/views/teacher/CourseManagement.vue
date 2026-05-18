@@ -348,6 +348,7 @@ import { ref, computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { getCourses, createCourse } from '../../api/course'
+import { importStudents as importClassStudents } from '../../api/class'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, 
@@ -718,31 +719,149 @@ const importStudents = (cls: any) => {
   importDialogVisible.value = true
 }
 
-const handleFileChange = (file: any) => {
+const handleFileChange = async (file: any) => {
   if (file.raw) {
     const fileName = file.raw.name
     const isPDF = fileName.endsWith('.pdf')
     
     if (isPDF) {
-      // 模拟PDF文件解析
       ElMessage.info('正在解析PDF文件...')
     }
     
-    // 模拟数据预览
-    previewData.value = [
-      { studentId: '20240006', name: '测试学生1', email: 'test1@example.com', phone: '13800138006' },
-      { studentId: '20240007', name: '测试学生2', email: 'test2@example.com', phone: '13800138007' },
-      { studentId: '20240008', name: '测试学生3', email: 'test3@example.com', phone: '13800138008' }
-    ]
+    try {
+      // 读取文件内容
+      const fileContent = await readFileContent(file.raw)
+      
+      // 解析文件内容
+      if (isPDF) {
+        // PDF文件解析（简单处理）
+        previewData.value = parsePDFFile(fileContent)
+      } else {
+        // Excel文件解析（简单处理）
+        previewData.value = parseExcelFile(fileContent)
+      }
+    } catch (error) {
+      console.error('文件解析失败:', error)
+      ElMessage.error('文件解析失败，请确保文件格式正确')
+    }
   }
 }
 
-const confirmImport = () => {
-  if (selectedClass.value) {
-    selectedClass.value.studentCount += previewData.value.length
+const readFileContent = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      if (typeof e.target?.result === 'string') {
+        resolve(e.target.result)
+      } else {
+        reject(new Error('无法读取文件内容'))
+      }
+    }
+    reader.onerror = reject
+    reader.readAsText(file)
+  })
+}
+
+const parsePDFFile = (content: string): any[] => {
+  // 简单的PDF文本解析，提取学生信息
+  const students: any[] = []
+  const lines = content.split('\n')
+  
+  for (const line of lines) {
+    const trimmedLine = line.trim()
+    // 匹配学号 姓名 邮箱 手机号格式
+    const match = trimmedLine.match(/(\d{8,12})\s+([\u4e00-\u9fa5]+)\s+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\s+(\d{11})/)
+    if (match) {
+      students.push({
+        studentId: match[1],
+        name: match[2],
+        email: match[3],
+        phone: match[4]
+      })
+    }
   }
-  ElMessage.success(`成功导入 ${previewData.value.length} 名学生`)
-  importDialogVisible.value = false
+  
+  return students
+}
+
+const parseExcelFile = (content: string): any[] => {
+  // 简单的CSV/Excel解析
+  const students: any[] = []
+  const lines = content.split('\n').filter(line => line.trim())
+  
+  // 跳过表头
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    
+    // 支持逗号和制表符分隔
+    const parts = line.split(/[,;\t]/).map(p => p.trim())
+    
+    if (parts.length >= 2) {
+      students.push({
+        studentId: parts[0] || '',
+        name: parts[1] || '',
+        email: parts[2] || '',
+        phone: parts[3] || ''
+      })
+    }
+  }
+  
+  return students
+}
+
+const confirmImport = async () => {
+  if (!selectedClass.value || previewData.value.length === 0) {
+    return
+  }
+  
+  try {
+    // 调用后端API导入学生
+    const response = await importClassStudents(selectedClass.value.id, {
+      students: previewData.value.map(s => ({
+        student_id: s.studentId,
+        name: s.name,
+        email: s.email,
+        phone: s.phone
+      }))
+    })
+    
+    if (response.code === 200) {
+      const importedCount = response.data?.count || previewData.value.length
+      selectedClass.value.studentCount += importedCount
+      ElMessage.success(`成功导入 ${importedCount} 名学生`)
+      // 刷新班级列表
+      await loadClasses()
+    } else {
+      ElMessage.error(response.message || '导入失败')
+    }
+  } catch (error) {
+    console.error('导入学生失败:', error)
+    ElMessage.error('导入失败，请检查网络连接')
+  } finally {
+    importDialogVisible.value = false
+  }
+}
+
+const loadClasses = async () => {
+  try {
+    const response = await getClasses()
+    if (response.code === 200 && response.data) {
+      classes.value = response.data.map((cls: any) => ({
+        ...cls,
+        courseName: cls.course_name || '',
+        studentCount: cls.student_count || 0,
+        createTime: cls.create_time || ''
+      }))
+    }
+  } catch (error) {
+    console.error('加载班级列表失败:', error)
+  }
+}
+
+const getClasses = async (params?: any) => {
+  const { request } = await import('../../api/interceptors')
+  return await request.get('/classes', params)
 }
 
 const viewStudents = (cls: any) => {

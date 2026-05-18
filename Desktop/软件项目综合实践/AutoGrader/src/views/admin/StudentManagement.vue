@@ -223,26 +223,36 @@ import {
 import { getStudents, addStudent, updateStudent, deleteStudent as deleteStudentApi, importStudents, resetStudentPassword } from '../../api/student'
 import { usePermissions } from '../../services/permissionService'
 
-// 模拟Excel解析功能
+// 解析Excel文件（CSV格式）
 function parseExcelFile(file: File): Promise<any[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => {
       try {
-        // 模拟解析过程
+        const content = e.target?.result as string
+        const lines = content.split('\n').filter(line => line.trim())
+        
         const results: any[] = []
-        // 生成模拟数据
-        for (let i = 1; i <= 100; i++) {
-          results.push({
-            id: `S${String(i).padStart(3, '0')}`,
-            name: `学生${i}`,
-            username: `student${i}`,
-            email: `student${i}@example.com`,
-            phone: `13800138${String(i).padStart(4, '0')}`,
-            major: ['计算机科学与技术', '软件工程', '数据科学与大数据技术'][Math.floor(Math.random() * 3)],
-            grade: ['2023级', '2024级', '2025级'][Math.floor(Math.random() * 3)],
-            status: 'active'
-          })
+        // 跳过表头，从第二行开始
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim()
+          if (!line) continue
+          
+          // 支持逗号、分号、制表符分隔
+          const parts = line.split(/[,;\t]/).map(p => p.trim())
+          
+          if (parts.length >= 2) {
+            results.push({
+              id: parts[0] || '',
+              name: parts[1] || '',
+              username: parts[2] || '',
+              email: parts[3] || '',
+              phone: parts[4] || '',
+              major: parts[5] || '',
+              grade: parts[6] || '',
+              status: 'active'
+            })
+          }
         }
         resolve(results)
       } catch (error) {
@@ -250,7 +260,7 @@ function parseExcelFile(file: File): Promise<any[]> {
       }
     }
     reader.onerror = () => reject(new Error('文件读取失败'))
-    reader.readAsArrayBuffer(file)
+    reader.readAsText(file, 'UTF-8')
   })
 }
 
