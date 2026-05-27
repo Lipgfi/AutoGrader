@@ -95,13 +95,17 @@
                     <el-icon><TrendCharts /></el-icon>
                     得分：{{ assignment.score }}/{{ assignment.totalScore }}
                   </span>
+                  <span v-else-if="assignment.score > 0" class="meta-item score">
+                    <el-icon><TrendCharts /></el-icon>
+                    最高得分：{{ assignment.score }}/{{ assignment.totalScore }}
+                  </span>
                 </div>
               </div>
               <div class="assignment-action">
                 <el-button
                   v-if="!assignment.isExpired"
                   type="primary"
-                  @click="goToAssignment(assignment.id)"
+                  @click="goToAssignment(assignment)"
                 >
                   {{ assignment.isCompleted ? '查看详情' : '开始答题' }}
                 </el-button>
@@ -136,21 +140,7 @@
           <el-table :data="filteredMembers" style="width: 100%">
             <el-table-column prop="studentId" label="学号" width="120" />
             <el-table-column prop="name" label="姓名" width="120" />
-            <el-table-column prop="email" label="邮箱" min-width="200" />
-            <el-table-column prop="completedAssignments" label="已完成作业" width="120" align="center">
-              <template #default="scope">
-                <span :class="{ 'all-completed': scope.row.completedAssignments === courseInfo.totalAssignments }">
-                  {{ scope.row.completedAssignments }}/{{ courseInfo.totalAssignments }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="avgScore" label="平均分" width="100" align="center">
-              <template #default="scope">
-                <el-tag :type="getScoreType(scope.row.avgScore)" size="small">
-                  {{ scope.row.avgScore.toFixed(1) }}
-                </el-tag>
-              </template>
-            </el-table-column>
+            <el-table-column prop="email" label="邮箱" min-width="300" />
           </el-table>
         </el-card>
       </el-tab-pane>
@@ -159,8 +149,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { request } from '../../api/interceptors'
+import { getCourseDetail } from '../../api/course'
+import { getClasses, getClassStudents } from '../../api/class'
+import { getAssignments } from '../../api/assignment'
 import { 
   ArrowLeft, 
   Document, 
@@ -169,7 +163,7 @@ import {
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
-// const route = useRoute()
+const route = useRoute()
 
 const activeTab = ref('assignments')
 const assignmentSearch = ref('')
@@ -177,103 +171,115 @@ const assignmentFilter = ref('')
 const memberSearch = ref('')
 
 const courseInfo = ref({
-  courseId: 'C001',
-  courseName: '数据结构与算法',
-  courseCode: 'CS101',
-  teacher: '张教授',
-  className: '计算机2401班',
-  semester: '2026春季学期',
+  courseId: '',
+  courseName: '',
+  courseCode: '',
+  teacher: '',
+  className: '',
+  semester: '',
   color: '#165DFF',
   status: 'active',
-  totalAssignments: 8
+  totalAssignments: 0
 })
 
-const announcements = ref([
-  {
-    id: 1,
-    title: '期中考试安排通知',
-    content: '期中考试将于第10周进行，考试范围为前五章内容，请同学们提前复习。考试形式为闭卷笔试，时长120分钟。',
-    time: '2026-04-01 10:00',
-    type: 'important'
-  },
-  {
-    id: 2,
-    title: '第三次作业已发布',
-    content: '第三次作业已发布，请同学们在截止日期前完成提交。本次作业涉及链表和树的相关内容。',
-    time: '2026-03-28 14:30',
-    type: 'normal'
-  },
-  {
-    id: 3,
-    title: '课程资料更新',
-    content: '第四章课件已上传，请同学们自行下载学习。',
-    time: '2026-03-25 09:00',
-    type: 'normal'
-  }
-])
+const announcements = ref([])
+const assignments = ref([])
+const members = ref([])
 
-const assignments = ref([
-  {
-    id: 'A001',
-    title: '第一次作业 - 数组与链表',
-    description: '完成数组基本操作和链表反转相关题目',
-    questionCount: 3,
-    deadline: '2026-04-05 23:59',
-    isExpired: false,
-    isCompleted: true,
-    score: 95,
-    totalScore: 100,
-    timeProgress: 60,
-    remainingTime: '3天12小时'
-  },
-  {
-    id: 'A002',
-    title: '第二次作业 - 栈与队列',
-    description: '实现栈和队列的基本操作，解决相关算法问题',
-    questionCount: 4,
-    deadline: '2026-04-10 23:59',
-    isExpired: false,
-    isCompleted: false,
-    score: 0,
-    totalScore: 100,
-    timeProgress: 30,
-    remainingTime: '8天12小时'
-  },
-  {
-    id: 'A003',
-    title: '第三次作业 - 树与二叉树',
-    description: '实现二叉树的遍历和相关操作',
-    questionCount: 3,
-    deadline: '2026-04-15 23:59',
-    isExpired: false,
-    isCompleted: false,
-    score: 0,
-    totalScore: 100,
-    timeProgress: 10,
-    remainingTime: '13天12小时'
-  },
-  {
-    id: 'A004',
-    title: '第四次作业 - 图论基础',
-    description: '实现图的遍历和最短路径算法',
-    questionCount: 2,
-    deadline: '2026-03-20 23:59',
-    isExpired: true,
-    isCompleted: true,
-    score: 88,
-    totalScore: 100,
-    timeProgress: 100,
-    remainingTime: '已截止'
-  }
-])
+const loadData = async () => {
+  const courseId = route.params.id as string
+  if (!courseId) return
 
-const members = ref([
-  { studentId: '20240001', name: '张三', email: 'zhangsan@example.com', completedAssignments: 5, avgScore: 92.5 },
-  { studentId: '20240002', name: '李四', email: 'lisi@example.com', completedAssignments: 4, avgScore: 85.0 },
-  { studentId: '20240003', name: '王五', email: 'wangwu@example.com', completedAssignments: 5, avgScore: 78.5 },
-  { studentId: '20240004', name: '赵六', email: 'zhaoliu@example.com', completedAssignments: 3, avgScore: 90.0 },
-  { studentId: '20240005', name: '钱七', email: 'qianqi@example.com', completedAssignments: 5, avgScore: 95.5 }
-])
+  try {
+    const [courseRes, classesRes, assignmentsRes] = await Promise.all([
+      getCourseDetail(courseId),
+      getClasses(),
+      getAssignments()
+    ])
+
+    // 课程信息
+    if (courseRes.code === 200 && courseRes.data) {
+      const c = courseRes.data
+      courseInfo.value = {
+        courseId: c.course_id || c.courseId || courseId,
+        courseName: c.course_name || c.courseName || '',
+        courseCode: c.course_code || c.courseCode || '',
+        teacher: c.teacher_name || c.teacher || '',
+        className: courseInfo.value.className,
+        semester: c.semester || '',
+        color: '#165DFF',
+        status: 'active',
+        totalAssignments: courseInfo.value.totalAssignments
+      }
+    }
+
+    // 班级信息（找到学生在此课程中的班级）
+    const apiClasses = (classesRes.code === 200 && classesRes.data) ? (classesRes.data || []) : []
+    const matchedClass = apiClasses.find((cls: any) => {
+      const cid = cls.course_id || cls.courseId
+      return String(cid) === String(courseId)
+    })
+    const classId = matchedClass ? (matchedClass.class_id || matchedClass.id) : null
+    if (matchedClass) {
+      courseInfo.value.className = matchedClass.class_name || matchedClass.name || ''
+
+      // 加载班级学生
+      try {
+        const studentsRes = await getClassStudents(String(classId))
+        if (studentsRes.code === 200 && studentsRes.data) {
+          members.value = (studentsRes.data || []).map((s: any) => ({
+            studentId: s.student_id || s.studentId || '',
+            name: s.real_name || s.name || '',
+            email: s.email || ''
+          }))
+        }
+      } catch (e) { console.error('加载班级成员失败', e) }
+    }
+
+    // 加载学生提交记录，判断作业完成状态
+    let submissionsByAsgn: Record<number, any> = {}
+    try {
+      const subRes = await request.get('/submissions/my')
+      if (subRes.code === 200 && subRes.data) {
+        for (const s of (subRes.data || [])) {
+          const aid = s.assignment_id
+          const score = s.overall_score ?? 0
+          const prevScore = submissionsByAsgn[aid]?.overall_score ?? -1
+          if (score >= prevScore) {
+            submissionsByAsgn[aid] = s
+          }
+        }
+      }
+    } catch (e) { /* ignore */ }
+
+    // 作业列表 — 仅显示当前课程班级的作业
+    const apiAssignments = (assignmentsRes.code === 200 && assignmentsRes.data) ? (assignmentsRes.data || []) : []
+    assignments.value = apiAssignments
+      .filter((a: any) => !classId || (a.class_id || a.classId) === classId)
+      .map((a: any) => {
+      const dueDate = new Date(a.due_date || a.dueDate || a.deadline)
+      const isExpired = dueDate < new Date()
+      const sub = submissionsByAsgn[a.assignment_id || a.id]
+      const isCompleted = sub && sub.status === 'COMPLETED'
+      return {
+        id: a.assignment_id || a.id,
+        title: a.title || '',
+        description: a.description || '',
+        questionId: a.question_id || '',
+        questionCount: 1,
+        deadline: dueDate.toLocaleString('zh-CN'),
+        isExpired,
+        isCompleted,
+        score: sub ? (sub.overall_score ?? 0) : 0,
+        totalScore: 100
+      }
+    })
+    courseInfo.value.totalAssignments = assignments.value.length
+
+  } catch (error) {
+    console.error('加载课程详情失败:', error)
+  }
+}
 
 const filteredAssignments = computed(() => {
   let result = assignments.value
@@ -321,9 +327,18 @@ const goBack = () => {
   router.push('/student/courses')
 }
 
-const goToAssignment = (assignmentId: string) => {
-  router.push({ name: 'StudentCoding', params: { id: assignmentId } })
+const goToAssignment = (assignment: any) => {
+  const qId = assignment.questionId || assignment.id
+  sessionStorage.setItem('codingContext', JSON.stringify({
+    assignmentId: String(assignment.id),
+    questionId: String(qId)
+  }))
+  router.push({ name: 'StudentCoding', params: { id: String(qId) } })
 }
+
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>

@@ -73,6 +73,8 @@
         <el-select v-model="filterStatus" placeholder="完成状态" clearable class="filter-select">
           <el-option label="全部状态" value="" />
           <el-option label="已完成" value="completed" />
+          <el-option label="部分通过" value="partial" />
+          <el-option label="未通过" value="failed" />
           <el-option label="未完成" value="pending" />
         </el-select>
         
@@ -107,8 +109,8 @@
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="scope">
-            <el-tag :type="scope.row.status === 'completed' ? 'success' : 'warning'" effect="dark" size="small">
-              {{ scope.row.status === 'completed' ? '已完成' : '未完成' }}
+            <el-tag :type="scope.row.status === 'completed' ? 'success' : scope.row.status === 'partial' ? '' : scope.row.status === 'failed' ? 'danger' : 'warning'" effect="dark" size="small">
+              {{ scope.row.status === 'completed' ? '已完成' : scope.row.status === 'partial' ? '部分通过' : scope.row.status === 'failed' ? '未通过' : '未完成' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -138,7 +140,7 @@
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="scope">
             <el-button
-              v-if="scope.row.status === 'completed'"
+              v-if="scope.row.status === 'completed' || scope.row.status === 'partial'"
               type="primary"
               link
               size="small"
@@ -252,9 +254,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { request } from '../../api/interceptors'
+import { getAssignments } from '../../api/assignment'
+import { getCourses } from '../../api/course'
 import { 
   Download, 
   Document, 
@@ -273,107 +278,89 @@ const detailDialogVisible = ref(false)
 const selectedGrade = ref<any>(null)
 
 const stats = ref({
-  totalAssignments: 15,
-  completedAssignments: 12,
-  avgScore: 85.6,
-  ranking: 5
+  totalAssignments: 0,
+  completedAssignments: 0,
+  avgScore: 0,
+  ranking: 0
 })
 
-const courses = ref([
-  { id: 'C001', name: '数据结构与算法' },
-  { id: 'C002', name: '操作系统原理' },
-  { id: 'C003', name: '计算机网络' }
-])
+const courses = ref([])
+const grades = ref([])
 
-const grades = ref([
-  {
-    id: 'G001',
-    questionId: 'Q001',
-    courseId: 'C001',
-    courseName: '数据结构与算法',
-    assignmentName: '第一次作业 - 数组与链表',
-    deadline: '2026-04-05 23:59',
-    status: 'completed',
-    score: 95,
-    totalScore: 100,
-    passRate: 100,
-    submitTime: '2026-04-03 15:30',
-    passedCases: 3,
-    totalCases: 3,
-    runtime: 32,
-    ranking: 2,
-    testCases: [
-      { passed: true, input: '[2,7,11,15], 9', expectedOutput: '[0,1]', actualOutput: '[0,1]', executionTime: 12 },
-      { passed: true, input: '[3,2,4], 6', expectedOutput: '[1,2]', actualOutput: '[1,2]', executionTime: 8 },
-      { passed: true, input: '[3,3], 6', expectedOutput: '[0,1]', actualOutput: '[0,1]', executionTime: 12 }
-    ]
-  },
-  {
-    id: 'G002',
-    questionId: 'Q002',
-    courseId: 'C001',
-    courseName: '数据结构与算法',
-    assignmentName: '第二次作业 - 栈与队列',
-    deadline: '2026-04-10 23:59',
-    status: 'completed',
-    score: 88,
-    totalScore: 100,
-    passRate: 75,
-    submitTime: '2026-04-08 20:15',
-    passedCases: 3,
-    totalCases: 4,
-    runtime: 45,
-    ranking: 8,
-    testCases: [
-      { passed: true, input: '["2","1","+","3","*"]', expectedOutput: '9', actualOutput: '9', executionTime: 15 },
-      { passed: true, input: '["4","13","5","/","+"]', expectedOutput: '6', actualOutput: '6', executionTime: 12 },
-      { passed: true, input: '["10","6","9","3","+","-11","*","/","*","17","+","5","+"]', expectedOutput: '22', actualOutput: '22', executionTime: 18 },
-      { passed: false, input: '["3","2","1","-","*","5","*"]', expectedOutput: '-15', actualOutput: '15', executionTime: 10 }
-    ]
-  },
-  {
-    id: 'G003',
-    questionId: 'Q003',
-    courseId: 'C002',
-    courseName: '操作系统原理',
-    assignmentName: '进程调度模拟',
-    deadline: '2026-04-15 23:59',
-    status: 'pending',
-    score: null,
-    totalScore: 100,
-    passRate: null,
-    submitTime: '-',
-    passedCases: 0,
-    totalCases: 0,
-    runtime: 0,
-    ranking: 0,
-    testCases: []
-  },
-  {
-    id: 'G004',
-    questionId: 'Q004',
-    courseId: 'C003',
-    courseName: '计算机网络',
-    assignmentName: 'TCP连接模拟',
-    deadline: '2026-04-12 23:59',
-    status: 'completed',
-    score: 72,
-    totalScore: 100,
-    passRate: 60,
-    submitTime: '2026-04-11 18:45',
-    passedCases: 3,
-    totalCases: 5,
-    runtime: 68,
-    ranking: 15,
-    testCases: [
-      { passed: true, input: 'SYN', expectedOutput: 'SYN-ACK', actualOutput: 'SYN-ACK', executionTime: 20 },
-      { passed: true, input: 'ACK', expectedOutput: 'ESTABLISHED', actualOutput: 'ESTABLISHED', executionTime: 15 },
-      { passed: true, input: 'FIN', expectedOutput: 'FIN-ACK', actualOutput: 'FIN-ACK', executionTime: 18 },
-      { passed: false, input: 'RST', expectedOutput: 'CLOSED', actualOutput: 'ERROR', executionTime: 10 },
-      { passed: false, input: 'PSH', expectedOutput: 'DATA_TRANSFER', actualOutput: 'UNKNOWN', executionTime: 5 }
-    ]
+const loadGrades = async () => {
+  try {
+    const [submissionsRes, assignmentsRes, coursesRes] = await Promise.all([
+      request.get('/submissions/my'),
+      getAssignments(),
+      getCourses()
+    ])
+
+    // 课程映射
+    const courseMap: Record<number, string> = {}
+    if (coursesRes.code === 200 && coursesRes.data) {
+      for (const c of (coursesRes.data || [])) {
+        courseMap[c.course_id || c.id] = c.course_name || c.name
+      }
+    }
+
+    // 作业映射
+    const asgnMap: Record<number, any> = {}
+    if (assignmentsRes.code === 200 && assignmentsRes.data) {
+      for (const a of (assignmentsRes.data || [])) {
+        asgnMap[a.assignment_id || a.id] = a
+      }
+    }
+
+    // 成绩列表 — 按作业去重，取最佳提交
+    if (submissionsRes.code === 200 && submissionsRes.data) {
+      const list = submissionsRes.data || []
+      // 按作业取最高分
+      const bestByAsgn: Record<number, any> = {}
+      for (const s of list) {
+        const aid = s.assignment_id
+        const score = s.overall_score ?? s.score ?? 0
+        if (!bestByAsgn[aid] || score > (bestByAsgn[aid].overall_score ?? 0)) {
+          bestByAsgn[aid] = s
+        }
+      }
+
+      grades.value = Object.values(bestByAsgn).map((s: any) => {
+        const asgn = asgnMap[s.assignment_id]
+        return {
+          id: s.submission_id || s.id,
+          courseId: asgn ? (asgn.course_id || asgn.class_id) : '',
+          courseName: asgn ? (courseMap[asgn.course_id] || asgn.class_name || '') : (s.assignment_title || ''),
+          assignmentId: s.assignment_id,
+          assignmentName: s.assignment_title || asgn?.title || '',
+          questionId: s.question_id,
+          score: s.overall_score ?? s.score ?? 0,
+          totalScore: 100,
+          status: s.status === 'COMPLETED'
+            ? ((s.passed_count || 0) >= (s.total_count || 1) ? 'completed' : (s.passed_count || 0) > 0 ? 'partial' : 'failed')
+            : 'pending',
+          language: s.language || '',
+          submitTime: s.submitted_at || s.submitTime || '',
+          passedCount: s.passed_count || 0,
+          totalCount: s.total_count || 0,
+          passRate: s.total_count > 0 ? Math.round((s.passed_count || 0) / s.total_count * 100) : null,
+          passedCases: s.passed_count || 0,
+          totalCases: s.total_count || 0
+        }
+      })
+
+      // 计算统计数据
+      const scored = grades.value.filter((g: any) => g.score > 0)
+      stats.value = {
+        totalAssignments: grades.value.length,
+        completedAssignments: grades.value.filter((g: any) => g.status === 'completed' || g.status === 'partial').length,
+        avgScore: scored.length > 0 ? Math.round(scored.reduce((sum: number, g: any) => sum + g.score, 0) / scored.length * 10) / 10 : 0,
+        ranking: 0
+      }
+    }
+  } catch (e) {
+    console.error('加载成绩失败:', e)
   }
-])
+}
 
 const filteredGrades = computed(() => {
   let result = grades.value
@@ -417,7 +404,7 @@ const getProgressColor = (percentage: number): string => {
 }
 
 const viewDetail = (row: any) => {
-  if (row.status !== 'completed') {
+  if (row.status === 'pending' || row.status === 'failed') {
     goToSubmit(row)
     return
   }
@@ -438,6 +425,10 @@ const retrySubmit = () => {
 const exportGrades = () => {
   ElMessage.success('成绩导出成功')
 }
+
+onMounted(() => {
+  loadGrades()
+})
 </script>
 
 <style scoped>

@@ -86,6 +86,15 @@
             </el-button>
             <el-button
               v-if="scope.row.role !== 'admin'"
+              :type="scope.row.status === 'active' ? 'warning' : 'success'"
+              link
+              size="small"
+              @click="handleToggleStatus(scope.row)"
+            >
+              {{ scope.row.status === 'active' ? '禁用' : '启用' }}
+            </el-button>
+            <el-button
+              v-if="scope.row.role !== 'admin'"
               type="danger"
               link
               size="small"
@@ -215,8 +224,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createTeacher } from '../../api/user'
-import { getUsers } from '../../api/user'
+import { getUsers, createTeacher, toggleUserStatus, deleteUser as deleteUserApi } from '../../api/user'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 
@@ -340,17 +348,16 @@ const handleCreateUser = async () => {
     
     // 调用 API 创建教师账号
     const response = await createTeacher({
-      username: createForm.username,
-      name: createForm.name,
+      teacher_id: createForm.username,
+      real_name: createForm.name,
       email: createForm.email,
       department: createForm.department,
-      password: createForm.password,
-      role: 'teacher'
+      initial_password: createForm.password
     })
     
-    if (response.data?.code === 200 && response.data?.data) {
+    if (response.code === 200 && response.data) {
       users.value.push({
-        id: response.data.id || Date.now(),
+        id: response.data?.id || response.data?.user_id || Date.now(),
         username: createForm.username,
         name: createForm.name,
         role: 'teacher',
@@ -394,22 +401,23 @@ const resetPassword = (user: any) => {
 const loadUsers = async () => {
   try {
     const response = await getUsers()
-    if (response.data?.code === 200 && response.data?.data) {
-      const userList = Array.isArray(response.data) ? response.data : response.data.data || []
+    if (response.code === 200 && response.data) {
+      const userList = response.data.users || response.data.data || (Array.isArray(response.data) ? response.data : [])
       users.value = userList.map((user: any) => ({
-        id: user.id || user.userId,
+        id: user.id || user.userId || user.user_id,
         username: user.username || user.user_name,
         name: user.name || user.real_name || user.realName,
         role: user.role,
         email: user.email || '',
         className: user.className || user.class_name || '',
         department: user.department || user.dept || '',
-        status: user.status || 'active',
-        lastLogin: user.lastLogin || user.last_login || '',
-        createTime: user.createTime || user.create_time || '',
+        status: user.is_active ? 'active' : 'inactive',
+        lastLogin: user.lastLogin || user.last_login || user.last_login_at || '',
+        createTime: user.created_at || user.createTime || user.create_time || '',
         phone: user.phone || '',
         loginCount: user.loginCount || user.login_count || 0
       }))
+      totalUsers.value = response.data?.total || response.data?.data?.length || userList.length
     }
   } catch (error) {
     console.error('[UserManagement] 加载用户失败:', error)
@@ -422,17 +430,29 @@ onMounted(() => {
   loadUsers()
 })
 
+const handleToggleStatus = async (user: any) => {
+  try {
+    await toggleUserStatus(String(user.id))
+    await loadUsers()
+    ElMessage.success(user.status === 'active' ? '账号已禁用' : '账号已启用')
+  } catch (e) {
+    ElMessage.error('操作失败')
+  }
+}
+
 const deleteUser = (user: any) => {
   ElMessageBox.confirm(`确定要删除用户 ${user.name} 吗？`, '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    const index = users.value.findIndex(u => u.id === user.id)
-    if (index > -1) {
-      users.value.splice(index, 1)
+  }).then(async () => {
+    try {
+      await deleteUserApi(String(user.id))
+      await loadUsers()
+      ElMessage.success('删除成功')
+    } catch (e) {
+      ElMessage.error('删除失败')
     }
-    ElMessage.success('删除成功')
   })
 }
 

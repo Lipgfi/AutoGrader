@@ -29,14 +29,14 @@
           </div>
         </div>
         <div class="stat-footer">
-          <span class="trend up">
-            <el-icon><Top /></el-icon>
-            +12%
+          <span :class="['trend', monthlyChanges.users >= 0 ? 'up' : 'down']">
+            <el-icon><Top v-if="monthlyChanges.users >= 0" /><Bottom v-else /></el-icon>
+            {{ monthlyChanges.users >= 0 ? '+' : '' }}{{ monthlyChanges.users }}%
           </span>
           <span class="period">较上月</span>
         </div>
       </el-card>
-      
+
       <el-card class="stat-card">
         <div class="stat-content">
           <div class="stat-icon" style="background-color: var(--success-bg);">
@@ -48,9 +48,9 @@
           </div>
         </div>
         <div class="stat-footer">
-          <span class="trend up">
-            <el-icon><Top /></el-icon>
-            +8%
+          <span :class="['trend', monthlyChanges.courses >= 0 ? 'up' : 'down']">
+            <el-icon><Top v-if="monthlyChanges.courses >= 0" /><Bottom v-else /></el-icon>
+            {{ monthlyChanges.courses >= 0 ? '+' : '' }}{{ monthlyChanges.courses }}%
           </span>
           <span class="period">较上月</span>
         </div>
@@ -67,14 +67,14 @@
           </div>
         </div>
         <div class="stat-footer">
-          <span class="trend up">
-            <el-icon><Top /></el-icon>
-            +25%
+          <span :class="['trend', monthlyChanges.submissions >= 0 ? 'up' : 'down']">
+            <el-icon><Top v-if="monthlyChanges.submissions >= 0" /><Bottom v-else /></el-icon>
+            {{ monthlyChanges.submissions >= 0 ? '+' : '' }}{{ monthlyChanges.submissions }}%
           </span>
           <span class="period">较上月</span>
         </div>
       </el-card>
-      
+
       <el-card class="stat-card">
         <div class="stat-content">
           <div class="stat-icon" style="background-color: var(--danger-bg);">
@@ -86,9 +86,9 @@
           </div>
         </div>
         <div class="stat-footer">
-          <span class="trend up">
-            <el-icon><Top /></el-icon>
-            +3%
+          <span :class="['trend', monthlyChanges.avgScore >= 0 ? 'up' : 'down']">
+            <el-icon><Top v-if="monthlyChanges.avgScore >= 0" /><Bottom v-else /></el-icon>
+            {{ monthlyChanges.avgScore >= 0 ? '+' : '' }}{{ monthlyChanges.avgScore }}%
           </span>
           <span class="period">较上月</span>
         </div>
@@ -309,6 +309,7 @@ import {
   Document, 
   TrendCharts, 
   Top,
+  Bottom,
   Setting,
   Warning,
   SuccessFilled,
@@ -335,6 +336,7 @@ const stats = ref({
 const chartData = ref<{ label: string; value: number }[]>([])
 const recentSubmissions = ref<any[]>([])
 const systemActivities = ref<any[]>([])
+const monthlyChanges = ref({ users: 0, courses: 0, submissions: 0, avgScore: 0 })
 
 // 加载统计数据
 const loadStats = async () => {
@@ -343,10 +345,18 @@ const loadStats = async () => {
     const response = await getSystemStats()
     if (response.code === 200 && response.data) {
       stats.value = {
-        totalUsers: response.data.totalUsers || 0,
-        totalCourses: response.data.totalCourses || 0,
-        totalSubmissions: response.data.totalSubmissions || 0,
-        avgScore: response.data.avgScore || 0
+        totalUsers: response.data.total_users || response.data.totalUsers || 0,
+        totalCourses: response.data.total_courses || response.data.totalCourses || 0,
+        totalSubmissions: response.data.total_submissions || response.data.totalSubmissions || 0,
+        avgScore: response.data.avgScore || response.data.avg_score || 0
+      }
+      // 月度变化
+      const mc = response.data.monthlyChanges || {}
+      monthlyChanges.value = {
+        users: mc.users ?? 0,
+        courses: mc.courses ?? 0,
+        submissions: mc.submissions ?? 0,
+        avgScore: mc.avgScore ?? 0
       }
       // 图表数据
       if (response.data.chartData) {
@@ -354,7 +364,14 @@ const loadStats = async () => {
       }
       // 最近提交
       if (response.data.recentSubmissions) {
-        recentSubmissions.value = response.data.recentSubmissions
+        recentSubmissions.value = response.data.recentSubmissions.map((s: any) => ({
+          id: s.id,
+          name: s.student_name || '',
+          time: s.time || '',
+          course: s.course_name || '',
+          assignment: s.assignment_title || '',
+          score: s.score ?? 0
+        }))
       }
       // 系统活动
       if (response.data.systemActivities) {
@@ -368,46 +385,11 @@ const loadStats = async () => {
   }
 }
 
-const weeklyWorkItems = ref([
-  { task: '成绩子模块开发', deliverables: '成绩列表页、成绩详情弹窗、数据可视化图表', progress: 70, issue: '' },
-  { task: '作业子模块开发', deliverables: '作业发布/编辑页面、权限控制与日志功能', progress: 60, issue: '' },
-  { task: '学生信息管理子模块收尾', deliverables: '遗留问题修复、功能完善、批量导入优化', progress: 100, issue: '' },
-  { task: '与B-2/B-3/B-4接口联调', deliverables: '接口联调文档、联调问题清单', progress: 70, issue: '部分接口字段命名需进一步统一' },
-  { task: 'BUG修复与代码优化', deliverables: '代码审查问题整改、性能优化', progress: 50, issue: '' },
-  { task: '功能测试用例执行', deliverables: '测试用例文档、缺陷报告', progress: 40, issue: '复杂场景测试用例覆盖待完善' },
-  { task: '公共组件持续优化', deliverables: 'Table组件操作列权限显示、组件性能优化', progress: 80, issue: '' }
-])
+const weeklyWorkItems = ref([])
 
-const problemsAndSolutions = ref([
-  { 
-    problem: '成绩数据可视化图表类型选择（柱状图/折线图/雷达图）与业务场景匹配复杂', 
-    solution: '与产品经理确认各角色查看成绩的数据维度，设计可配置图表组件，支持按班级/个人/科目切换视图' 
-  },
-  { 
-    problem: '作业子模块权限控制与日志功能涉及多角色操作记录，日志数据结构定义复杂', 
-    solution: '设计统一的日志操作枚举类型，封装useOperationLog composable，支持按模块/操作类型/时间筛选' 
-  },
-  { 
-    problem: '成绩列表页数据量较大时，图表渲染与表格数据同步更新出现卡顿', 
-    solution: '采用ECharts的懒加载与数据分页渲染，表格数据与图表数据分离查询，减少单次渲染数据量' 
-  },
-  { 
-    problem: '与B-2后端联调时，作业发布接口的请求参数格式与前端表单数据结构不一致', 
-    solution: '封装数据转换层（DTO），统一前后端数据交互格式，增加请求/响应拦截器做自动转换' 
-  },
-  { 
-    problem: '学生信息管理子模块遗留的批量导入大文件性能问题', 
-    solution: '采用Web Worker处理Excel解析，分批次提交数据，增加导入进度条与断点续传机制' 
-  }
-])
+const problemsAndSolutions = ref([])
 
-const suggestions = ref([
-  '建议确认成绩数据可视化图表的业务需求细节，包括教师/学生/家长各角色查看的数据维度和默认图表类型',
-  '建议明确作业子模块日志功能的记录范围，是否需要记录字段级变更详情或仅记录操作类型',
-  '建议协调B-2后端统一作业发布接口的请求参数格式，如发布时间字段命名、附件上传方式等',
-  '建议确认成绩子模块的数据权限控制，班主任可查看本班成绩/年级组长可查看本年级/管理员可查看全部',
-  '建议规划下周功能测试的优先级，核心功能（成绩查询/作业提交）优先覆盖，边缘场景后续补充'
-])
+const suggestions = ref([])
 
 const updateTime = () => {
   currentTime.value = new Date().toLocaleString('zh-CN', {

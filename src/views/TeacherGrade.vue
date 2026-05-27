@@ -308,6 +308,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/atom-one-dark.css'
+import { getAssignments } from '../../api/assignment'
+import { getAssignmentSubmissions, overrideSubmissionScore } from '../../api/submission'
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -350,45 +352,40 @@ const quickRemarks = [
   '代码可读性差'
 ]
 
-const students = ref([
-  {
-    id: 1,
-    name: '张三',
-    studentId: '2024001',
-    submissionId: 'S001',
-    assignmentId: 'A001',
-    questionId: 'Q001',
-    fileName: 'homework1.py',
-    homeworkTitle: '第一次作业 - Python基础',
-    submitTime: '2024-01-15 14:30',
-    code: `def hello_world():
-    """打印Hello World"""
-    print("Hello, World!")
+const students = ref([])
 
-if __name__ == "__main__":
-    hello_world()`
-  },
-  {
-    id: 2,
-    name: '李四',
-    studentId: '2024002',
-    submissionId: 'S002',
-    assignmentId: 'A001',
-    questionId: 'Q002',
-    fileName: 'homework2.py',
-    homeworkTitle: '第一次作业 - Python基础',
-    submitTime: '2024-01-15 15:20',
-    code: `def fibonacci(n):
-    """计算斐波那契数列"""
-    if n <= 1:
-        return n
-    return fibonacci(n-1) + fibonacci(n-2)
-
-# 测试
-for i in range(10):
-    print(fibonacci(i))`
+const loadGradingData = async () => {
+  try {
+    const asgnRes = await getAssignments()
+    const apiAssignments = (asgnRes.code === 200 && asgnRes.data) ? (asgnRes.data || []) : []
+    const allSubs: any[] = []
+    for (const asgn of apiAssignments) {
+      try {
+        const subRes = await getAssignmentSubmissions(String(asgn.assignment_id || asgn.id))
+        if (subRes.code === 200 && subRes.data) {
+          const subs = subRes.data.submissions || subRes.data || []
+          for (const s of subs) {
+            allSubs.push({
+              id: s.submission_id || s.id,
+              studentName: s.student_name || s.real_name || '',
+              studentId: s.student_id || String(s.student_user_id || ''),
+              assignmentTitle: asgn.title,
+              code: s.code || '',
+              language: s.language || 'python',
+              score: s.overall_score ?? s.score ?? 0,
+              totalScore: 100,
+              status: s.status || 'PENDING',
+              remark: s.overall_comment || ''
+            })
+          }
+        }
+      } catch (e) { /* skip */ }
+    }
+    students.value = allSubs
+  } catch (e) {
+    console.error('加载评分数据失败:', e)
   }
-])
+}
 
 const currentStudent = computed(() => students.value[currentStudentIndex.value])
 
@@ -411,20 +408,7 @@ const totalScore = computed(() => {
          gradeForm.efficiencyScore + gradeForm.creativityScore
 })
 
-const gradeHistory = ref([
-  {
-    id: 1,
-    score: 20,
-    remark: '代码规范，逻辑清晰',
-    time: '2024-01-16 10:30'
-  },
-  {
-    id: 2,
-    score: 18,
-    remark: '需要改进代码结构',
-    time: '2024-01-16 11:45'
-  }
-])
+const gradeHistory = ref([])
 
 const calculateTotalScore = () => {
   // 总分自动计算，使用computed
@@ -523,33 +507,43 @@ const resetGradeForm = () => {
   gradeForm.remark = ''
 }
 
-const saveDraft = () => {
+const saveDraft = async () => {
   saving.value = true
-  setTimeout(() => {
-    saving.value = false
+  try {
+    if (currentStudent.value?.id) {
+      await overrideSubmissionScore(currentStudent.value.id, {
+        overallScore: totalScore.value,
+        overrideReason: gradeForm.remark || undefined
+      })
+    }
     ElMessage.success('评分已暂存')
-  }, 500)
+  } catch (e) { ElMessage.error('保存失败') }
+  finally { saving.value = false }
 }
 
-const submitGrade = () => {
+const submitGrade = async () => {
   if (totalScore.value === 0) {
     ElMessage.warning('请完成评分')
     return
   }
-  
+
   submitting.value = true
-  
-  setTimeout(() => {
-    submitting.value = false
+  try {
+    if (currentStudent.value?.id) {
+      await overrideSubmissionScore(currentStudent.value.id, {
+        overallScore: totalScore.value,
+        overrideReason: gradeForm.remark || undefined
+      })
+    }
     successDialogVisible.value = true
-    
     gradeHistory.value.unshift({
       id: gradeHistory.value.length + 1,
       score: totalScore.value,
       remark: gradeForm.remark || '无备注',
       time: new Date().toLocaleString('zh-CN')
     })
-  }, 1000)
+  } catch (e) { ElMessage.error('提交失败') }
+  finally { submitting.value = false }
 }
 
 const goBack = () => {
@@ -566,6 +560,7 @@ watch(currentStudentIndex, () => {
 })
 
 onMounted(() => {
+  loadGradingData()
   highlightCode()
 })
 </script>
