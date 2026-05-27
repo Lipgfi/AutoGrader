@@ -223,6 +223,9 @@
             <span class="divider">|</span>
             <span>用时 {{ record.runtime }}ms</span>
           </div>
+          <div v-if="record.id === currentRecordId && record.code" class="history-code">
+            <pre class="code-preview">{{ record.code }}</pre>
+          </div>
         </el-card>
       </div>
     </el-drawer>
@@ -315,8 +318,12 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { useUserStore } from '../../stores/user'
 import { getQuestionDetail } from '../../api/question'
 import { evaluateSubmission, getB3QuestionCases } from '../../api/b3'
+import { createSubmission, updateSubmissionResult } from '../../api/submission'
+import { getAssignments } from '../../api/assignment'
+import { request } from '../../api/interceptors'
 import { 
   ArrowLeft, 
   Clock, 
@@ -330,6 +337,7 @@ import {
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 
 const leftPanelWidth = ref(40)
 const isResizing = ref(false)
@@ -518,6 +526,9 @@ const loadQuestion = async () => {
             expectedOutput: tc.expected_output || tc.expectedOutput || tc.output || ''
           }))
         }
+        if (questionData.language) {
+          selectedLanguage.value = questionData.language
+        }
         testcases.value = currentProblem.value.testcases
         selectedTestcase.value = testcases.value[0]?.id || 1
         console.log('[CodingPage] 从 B3 加载题目成功:', resolvedQId)
@@ -549,6 +560,9 @@ const loadQuestion = async () => {
           expectedOutput: tc.expectedOutput || tc.expected_output || tc.output || ''
         }))
       }
+      if (question.language) {
+        selectedLanguage.value = question.language
+      }
       testcases.value = currentProblem.value.testcases
       selectedTestcase.value = testcases.value[0]?.id || 1
       console.log('[CodingPage] 从 B4 加载题目成功:', currentProblem.value.title)
@@ -559,7 +573,7 @@ const loadQuestion = async () => {
         title: '题目加载失败',
         difficulty: '',
         tags: [],
-        description: `未能加载题目 "${resolvedQId}"。请确保后端服务（B4 端口 8002）已启动。`,
+        description: `未能加载题目 "${resolvedQId}"。请确保后端服务（B4 端口 8000）已启动。`,
         inputFormat: '',
         outputFormat: '',
         examples: [],
@@ -567,7 +581,7 @@ const loadQuestion = async () => {
         testcases: []
       }
       testcases.value = []
-      ElMessage.error('未找到该题目，请确保 B4 服务已启动（端口 8002）')
+      ElMessage.error('未找到该题目，请确保 B4 服务已启动（端口 8000）')
     }
   } catch (error: any) {
     console.error('[CodingPage] 加载题目失败:', error)
@@ -593,37 +607,102 @@ const submitCode = async () => {
     ElMessage.warning('请输入代码')
     return
   }
-  
+
   submitting.value = true
-  
+
+  let submissionId = ''
+
   try {
+    // 1. 通过 API 查询当前题目对应的 assignment_id
+    let assignmentId = ''
+    try {
+      const asgnRes = await getAssignments()
+      if (asgnRes.code === 200 && asgnRes.data) {
+        const match = (asgnRes.data || []).find((a: any) => a.question_id === questionId.value)
+        if (match) {
+          assignmentId = String(match.assignment_id || match.id)
+        }
+      }
+    } catch (e) { /* ignore */ }
+    console.log('[CodingPage] questionId:', questionId.value, 'assignmentId:', assignmentId)
+
+    if (assignmentId) {
+      try {
+        const createRes = await createSubmission({
+          question_id: questionId.value,
+          assignment_id: Number(assignmentId),
+          code: code.value,
+          language: selectedLanguage.value,
+          student_user_id: Number(userStore.userId)
+        })
+        submissionId = createRes?.data?.submission_id || ''
+        console.log('[CodingPage] 提交记录已创建:', submissionId)
+      } catch (e: any) {
+        console.error('[CodingPage] 创建提交记录失败:', e?.response?.status, e?.response?.data || e)
+      }
+    } else {
+      console.warn('[CodingPage] 未找到对应作业，跳过创建提交记录')
+    }
+
+    // 2. 调用 B3 评测
     const result = await evaluateSubmission({
       question_id: questionId.value,
       submitted_code: code.value,
-      submission_id: Date.now().toString(),
+      submission_id: submissionId || Date.now().toString(),
       language: selectedLanguage.value
     })
-    
+
+    const b3Result = result as any
     evaluationResult.value = {
-      passed: (result as any).passed ?? ((result as any).score === 100),
-      score: (result as any).score || 0,
-      passedCases: (result as any).passedCases || 0,
-      totalCases: (result as any).totalCases || 0,
-      runtime: (result as any).runtime || 0,
-      memory: (result as any).memory || 0,
-      ranking: (result as any).ranking || 0,
-      testCases: (result as any).testCases || []
+      passed: b3Result.passed_count === b3Result.total_count,
+      score: b3Result.overall_score || 0,
+      passedCases: b3Result.passed_count || 0,
+      totalCases: b3Result.total_count || 0,
+      runtime: b3Result.runtime || 0,
+      memory: b3Result.memory || 0,
+      ranking: b3Result.ranking || 0,
+      testCases: (b3Result.case_results || []).map((cr: any) => ({
+        input: cr.input || '',
+        expectedOutput: cr.expected_output || '',
+        actualOutput: cr.actual_output || '',
+        passed: cr.passed
+      }))
     }
-    
+
     submitHistory.value.unshift({
-      id: Date.now().toString(),
+      id: submissionId || Date.now().toString(),
       time: new Date().toLocaleString(),
       status: evaluationResult.value?.passed ? 'passed' : 'failed',
-      score: (result as any).score || 0,
+      score: b3Result.overall_score || 0,
       language: selectedLanguage.value,
-      runtime: (result as any).runtime || 0
+      runtime: b3Result.runtime || 0
     })
-    
+
+    // 3. 将 B3 评测结果更新到 B4 提交记录
+    if (submissionId) {
+      try {
+        await updateSubmissionResult(submissionId, {
+          status: 'COMPLETED',
+          overallScore: b3Result.overall_score || 0,
+          passedCount: b3Result.passed_count || 0,
+          totalCount: b3Result.total_count || 0,
+          overallComment: b3Result.overall_comment || '',
+          staticIssues: b3Result.static_issues || [],
+          caseResults: (b3Result.case_results || []).map((cr: any) => ({
+            case_id: cr.case_id || '',
+            passed: cr.passed,
+            input: cr.input || '',
+            expected_output: cr.expected_output || '',
+            actual_output: cr.actual_output || '',
+            score: cr.score || 0
+          }))
+        })
+        console.log('[CodingPage] 评测结果已更新到数据库')
+      } catch (e) {
+        console.error('[CodingPage] 更新评测结果失败:', e)
+      }
+    }
+
     showResult.value = true
   } catch (error) {
     ElMessage.error('提交失败，请稍后重试')
@@ -634,7 +713,11 @@ const submitCode = async () => {
 }
 
 const loadHistory = (record: any) => {
-  currentRecordId.value = record.id
+  if (currentRecordId.value === record.id) {
+    currentRecordId.value = ''
+  } else {
+    currentRecordId.value = record.id
+  }
 }
 
 const retrySubmit = () => {
@@ -666,9 +749,30 @@ const stopResize = () => {
   document.removeEventListener('mouseup', stopResize)
 }
 
+const loadSubmissionHistory = async () => {
+  try {
+    const res = await request.get('/submissions/my')
+    if (res.code === 200 && res.data) {
+      const qId = questionId.value
+      submitHistory.value = (res.data || [])
+        .filter((s: any) => s.question_id === qId)
+        .map((s: any) => ({
+          id: s.submission_id || '',
+          time: s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '',
+          status: (s.passed_count || 0) >= (s.total_count || 1) ? 'passed' : 'failed',
+          score: s.overall_score ?? 0,
+          language: s.language || '',
+          code: s.code || '',
+          runtime: 0
+        }))
+    }
+  } catch (e) { console.error('加载提交历史失败:', e) }
+}
+
 onMounted(() => {
   loadQuestion()
-  
+  loadSubmissionHistory()
+
   const savedDraft = localStorage.getItem(`draft_${questionId.value}_${selectedLanguage.value}`)
   if (savedDraft) {
     code.value = savedDraft
@@ -1240,5 +1344,24 @@ onUnmounted(() => {
 
 .case-code.actual {
   border: 1px solid #f5222d;
+}
+
+.history-code {
+  margin-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 8px;
+}
+
+.code-preview {
+  margin: 0;
+  padding: 8px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border-radius: 4px;
+  font-size: 12px;
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 </style>

@@ -272,25 +272,28 @@ import {
   TrendCharts, 
   Trophy 
 } from '@element-plus/icons-vue'
+import { useUserStore } from '../../stores/user'
+import { updateCurrentUser } from '../../api/user'
 import type { UploadProps, FormInstance, FormRules } from 'element-plus'
 
+const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const passwordFormRef = ref<FormInstance>()
 const isEditing = ref(false)
 const passwordLoading = ref(false)
 
 const userInfo = reactive({
-  studentId: '20240001',
-  name: '张三',
+  studentId: userStore.userInfo?.studentId || userStore.userInfo?.student_id || '',
+  name: userStore.userInfo?.realName || userStore.userInfo?.real_name || userStore.userInfo?.name || '',
   gender: 'male',
-  birthday: '2004-05-15',
-  email: 'zhangsan@example.com',
-  phone: '13800138000',
-  department: '计算机科学与技术学院',
-  className: '计算机2401班',
-  bio: '热爱编程，喜欢学习新技术。',
+  birthday: '',
+  email: userStore.userInfo?.email || '',
+  phone: userStore.userInfo?.phone || '',
+  department: userStore.userInfo?.department || '',
+  className: userStore.userInfo?.className || '',
+  bio: '',
   avatar: '',
-  role: '学生',
+  role: userStore.userInfo?.role || '',
   status: 'active'
 })
 
@@ -347,10 +350,10 @@ const passwordRules: FormRules = {
 }
 
 const stats = reactive({
-  totalCourses: 4,
-  completedAssignments: 12,
-  avgScore: 88.5,
-  ranking: 5
+  totalCourses: 0,
+  completedAssignments: 0,
+  avgScore: 0,
+  ranking: 0
 })
 
 const beforeAvatarUpload: UploadProps['beforeUpload'] = (rawFile) => {
@@ -411,20 +414,24 @@ const cancelEdit = () => {
 
 const changePassword = async () => {
   if (!passwordFormRef.value) return
-  
+
   try {
     await passwordFormRef.value.validate()
     passwordLoading.value = true
-    
-    setTimeout(() => {
-      passwordLoading.value = false
-      ElMessage.success('密码修改成功')
-      passwordForm.oldPassword = ''
-      passwordForm.newPassword = ''
-      passwordForm.confirmPassword = ''
-    }, 1000)
-  } catch (error) {
-    console.error('表单校验失败', error)
+
+    await updateCurrentUser({
+      old_password: passwordForm.oldPassword,
+      new_password: passwordForm.newPassword
+    })
+    ElMessage.success('密码修改成功')
+    passwordForm.oldPassword = ''
+    passwordForm.newPassword = ''
+    passwordForm.confirmPassword = ''
+  } catch (error: any) {
+    const msg = error?.response?.data?.detail || '密码修改失败'
+    ElMessage.error(msg)
+  } finally {
+    passwordLoading.value = false
   }
 }
 </script>

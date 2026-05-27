@@ -4,9 +4,7 @@
 export interface UserLoginRequest {
   username: string
   password: string
-  role: string
-  captcha_id?: string
-  captcha_code?: string
+  role?: string
 }
 
 export interface UserRegisterRequest {
@@ -35,8 +33,8 @@ export interface UserInfo {
 
 // 课程相关
 export interface CourseCreateRequest {
-  name: string
-  code: string
+  courseName: string
+  courseCode: string
   semester: string
   description?: string
 }
@@ -56,14 +54,20 @@ export interface Course {
 
 // 班级相关
 export interface ClassCreateRequest {
-  name: string
-  courseId: string
+  className: string
+  classCode: string
+  courseId: number
 }
 
 export interface Class {
   id: string
   name: string
   courseId: string
+  classId?: number
+  class_name?: string
+  class_code?: string
+  course_id?: number
+  course_name?: string
 }
 
 // 作业相关
