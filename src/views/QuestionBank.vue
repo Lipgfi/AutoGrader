@@ -239,13 +239,13 @@
         
         <!-- 编程题特有字段 -->
         <template v-if="questionForm.questionType === 1">
-          <el-form-item label="编程语言">
-            <el-checkbox-group v-model="questionForm.languages">
-              <el-checkbox label="python">Python</el-checkbox>
-              <el-checkbox label="java">Java</el-checkbox>
-              <el-checkbox label="cpp">C++</el-checkbox>
-              <el-checkbox label="javascript">JavaScript</el-checkbox>
-            </el-checkbox-group>
+          <el-form-item label="编程语言" prop="language">
+            <el-select v-model="questionForm.language" placeholder="请选择编程语言">
+              <el-option label="Python" value="python" />
+              <el-option label="Java" value="java" />
+              <el-option label="C++" value="cpp" />
+              <el-option label="C" value="c" />
+            </el-select>
           </el-form-item>
           
           <el-form-item label="测试用例">
@@ -467,6 +467,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getQuestions, createQuestion, deleteQuestion as deleteQuestionApi, updateQuestion } from '../api/question'
+import { createB3Question } from '../api/b3'
 import { 
   Plus, 
   Upload, 
@@ -521,7 +522,9 @@ const questionForm = reactive({
   status: 1,
   tags: [] as string[],
   answer: '',
-  languages: ['python'],
+  language: 'python',
+  timeLimit: 5,
+  memoryLimit: 256,
   testCases: [{ input: '', expectedOutput: '' }],
   options: [
     { content: '' },
@@ -580,23 +583,43 @@ const resetFilter = () => {
 
 const handleAddQuestion = () => {
   isEdit.value = false
+  resetQuestionForm()
   questionDialogVisible.value = true
 }
 
 const editQuestion = (row: any) => {
   isEdit.value = true
   currentQuestion.value = row
+  const rawType = row.type || row.questionType || 'COMMAND_LINE'
+  const rawDifficulty = row.difficulty || 'EASY'
+  // 检查是否已经是原始枚举值（字符串）还是已转换的数字
+  const qtValue = typeof rawType === 'string' ? (reverseTypeMap[rawType] || 1) : rawType
+  const diffValue = typeof rawDifficulty === 'string' ? (reverseDifficultyMap[rawDifficulty] || 1) : rawDifficulty
+  const rawTestCases = row.test_cases || row.testCases || []
   Object.assign(questionForm, {
-    ...row,
-    testCases: [{ input: '', expectedOutput: '' }],
+    questionType: qtValue,
+    categoryId: row.categoryId || row.category_id || null,
+    title: row.title || '',
+    content: row.description || row.content || '',
+    difficulty: diffValue,
+    score: row.score || 10,
+    status: row.is_active === false || row.status === 'INACTIVE' ? 0 : 1,
+    tags: row.tags || [],
+    answer: row.solution_code || row.answer || '',
+    language: row.language || 'python',
+    timeLimit: row.time_limit || row.timeLimit || 5,
+    memoryLimit: row.memory_limit || row.memoryLimit || 256,
+    testCases: rawTestCases.length > 0
+      ? rawTestCases.map((tc: any) => ({
+          input: tc.input || '',
+          expectedOutput: tc.expected_output || tc.expectedOutput || '',
+        }))
+      : [{ input: '', expectedOutput: '' }],
     options: [
-      { content: '' },
-      { content: '' },
-      { content: '' },
-      { content: '' }
+      { content: '' }, { content: '' }, { content: '' }, { content: '' }
     ],
     correctOption: 0,
-    fillBlanks: [{ answer: '' }]
+    fillBlanks: [{ answer: '' }],
   })
   questionDialogVisible.value = true
 }
@@ -634,8 +657,15 @@ const deleteQuestion = async (row: any) => {
   })
 }
 
-const handleStatusChange = (row: any) => {
-  ElMessage.success(`题目已${row.status === 1 ? '启用' : '禁用'}`)
+const handleStatusChange = async (row: any) => {
+  try {
+    await updateQuestion(row.id, { is_active: row.status === 1 })
+    ElMessage.success(`题目已${row.status === 1 ? '启用' : '禁用'}`)
+  } catch (error) {
+    console.error('状态更新失败', error)
+    row.status = row.status === 1 ? 0 : 1  // 恢复原状态
+    ElMessage.error('状态更新失败')
+  }
 }
 
 const handleSelectionChange = (selection: any[]) => {
@@ -703,7 +733,9 @@ const resetQuestionForm = () => {
     status: 1,
     tags: [],
     answer: '',
-    languages: ['python'],
+    language: 'python',
+    timeLimit: 5,
+    memoryLimit: 256,
     testCases: [{ input: '', expectedOutput: '' }],
     options: [
       { content: '' },
@@ -716,25 +748,44 @@ const resetQuestionForm = () => {
   })
 }
 
+// 前端表单 → B4 后端字段映射
+const typeMap: Record<number, string> = { 1: 'COMMAND_LINE', 2: 'FILE_IO', 3: 'INTERFACE' }
+const difficultyMap: Record<number, string> = { 1: 'EASY', 2: 'MEDIUM', 3: 'HARD' }
+const reverseTypeMap: Record<string, number> = { COMMAND_LINE: 1, FILE_IO: 2, INTERFACE: 3 }
+const reverseDifficultyMap: Record<string, number> = { EASY: 1, MEDIUM: 2, HARD: 3 }
+
+const buildPayload = () => {
+  const filtered = questionForm.testCases.filter((tc: any) => tc.input || tc.expectedOutput)
+  const test_cases = filtered.map((tc: any) => ({
+    input: tc.input,
+    expected_output: tc.expectedOutput,
+    is_public: true,
+    score_weight: 1.0,
+  }))
+  console.log('[QuestionBank] buildPayload testCases:', questionForm.testCases)
+  console.log('[QuestionBank] buildPayload filtered:', filtered)
+  console.log('[QuestionBank] buildPayload test_cases:', test_cases)
+  return {
+    title: questionForm.title,
+    description: questionForm.content,
+    type: typeMap[questionForm.questionType] || 'COMMAND_LINE',
+    difficulty: difficultyMap[questionForm.difficulty] || 'EASY',
+    language: questionForm.language || 'python',
+    time_limit: questionForm.timeLimit || 5,
+    memory_limit: questionForm.memoryLimit || 256,
+    starter_code: '',
+    solution_code: questionForm.answer || '',
+    test_cases,
+  }
+}
+
 const saveQuestion = async () => {
   questionFormRef.value?.validate(async (valid: boolean) => {
     if (valid) {
+      const payload = buildPayload()
       try {
         if (isEdit.value) {
-          const response = await updateQuestion(currentQuestion.value.id, {
-            title: questionForm.title,
-            content: questionForm.content,
-            difficulty: questionForm.difficulty,
-            score: questionForm.score,
-            status: questionForm.status,
-            tags: questionForm.tags,
-            answer: questionForm.answer,
-            languages: questionForm.languages,
-            testCases: questionForm.testCases,
-            options: questionForm.options,
-            correctOption: questionForm.correctOption,
-            fillBlanks: questionForm.fillBlanks
-          })
+          const response = await updateQuestion(currentQuestion.value.id, payload)
           if (response.code === 200) {
             Object.assign(currentQuestion.value, {
               title: questionForm.title,
@@ -742,49 +793,84 @@ const saveQuestion = async () => {
               difficulty: questionForm.difficulty,
               score: questionForm.score,
               status: questionForm.status,
-              tags: questionForm.tags
+              tags: questionForm.tags,
+              answer: questionForm.answer,
             })
             ElMessage.success('修改成功')
           } else {
-            ElMessage.error('修改失败')
+            ElMessage.error(response.msg || '修改失败')
           }
         } else {
-          const response = await createQuestion({
-            title: questionForm.title,
-            content: questionForm.content,
-            difficulty: questionForm.difficulty,
-            score: questionForm.score,
-            status: questionForm.status,
-            tags: questionForm.tags,
-            answer: questionForm.answer,
-            languages: questionForm.languages,
-            testCases: questionForm.testCases,
-            options: questionForm.options,
-            correctOption: questionForm.correctOption,
-            fillBlanks: questionForm.fillBlanks
-          })
+          const response = await createQuestion(payload)
           if (response.code === 200 && response.data) {
+            const qid = response.data.question_id || response.data.id
             questionList.value.unshift({
-              id: response.data.id,
+              id: qid,
               title: questionForm.title,
               content: questionForm.content,
+              questionType: questionForm.questionType,
               difficulty: questionForm.difficulty,
               score: questionForm.score,
               status: questionForm.status,
               tags: questionForm.tags,
+              language: questionForm.language,
               useCount: 0,
-              createTime: new Date().toLocaleString('zh-CN')
+              createTime: new Date().toLocaleString('zh-CN'),
             })
-            ElMessage.success('添加成功')
+            ElMessage.success('添加成功（B4）')
+
+            // 同步导入到 B3 判题引擎
+            try {
+              // C/C++ 语言走 api 类型（编译运行），其他走 shell 类型
+              const isCLang = questionForm.language === 'c' || questionForm.language === 'cpp'
+              const b3Type = isCLang ? 'api' : (typeMap[questionForm.questionType] || 'command')
+              const b3Language = isCLang ? questionForm.language : 'shell'
+              const b3Metadata: any = isCLang ? {
+                language: questionForm.language,
+                compile_cmd: 'gcc',
+                compile_args: ['-o', 'program', 'submission.c', '-Wall'],
+                run_cmd: './program',
+              } : {}
+
+              const b3Payload = {
+                id: qid,
+                title: questionForm.title,
+                description: questionForm.content,
+                question_type: b3Type,
+                difficulty: difficultyMap[questionForm.difficulty] || 'EASY',
+                language: b3Language,
+                allowed_commands: [] as string[],
+                metadata_json: b3Metadata,
+                test_cases: questionForm.testCases
+                  .filter((tc: any) => tc.input || tc.expectedOutput)
+                  .map((tc: any, i: number) => ({
+                    input: tc.input,
+                    expected_output: tc.expectedOutput,
+                    description: tc.expectedOutput || tc.input || `用例 ${i + 1}`,
+                    score_weight: 1.0,
+                  })),
+              }
+              await createB3Question(b3Payload)
+              ElMessage.success('已同步到 B3 判题引擎')
+            } catch (b3Err: any) {
+              if (b3Err?.response?.status === 409) {
+                console.warn('[QuestionBank] 题目已在 B3 中存在，跳过同步')
+              } else {
+                console.warn('[QuestionBank] B3 同步失败:', b3Err)
+                ElMessage.warning('B4 创建成功，但 B3 同步失败，可稍后重新导入')
+              }
+            }
           } else {
-            ElMessage.error('添加失败')
+            ElMessage.error(response.msg || '添加失败')
           }
         }
         questionDialogVisible.value = false
         resetQuestionForm()
-      } catch (error) {
+        loadQuestions()
+      } catch (error: any) {
         console.error('保存失败', error)
-        ElMessage.error(isEdit.value ? '修改失败' : '添加失败')
+        const detail = error?.response?.data?.detail
+        ElMessage.error(typeof detail === 'string' ? detail : (isEdit.value ? '修改失败' : '添加失败'))
       }
     }
   })
@@ -815,28 +901,43 @@ const createHomeworkFromQuestion = (question: any) => {
 const loadQuestions = async () => {
   loading.value = true
   try {
-    const response = await getQuestions({
+    const params: any = {
       keyword: filterForm.keyword || undefined,
-      type: filterForm.questionType || undefined,
-      difficulty: filterForm.difficulty || undefined,
       page: pagination.currentPage,
-      size: pagination.pageSize
-    })
+      size: pagination.pageSize,
+    }
+    // 将前端数字类型映射为 B4 枚举字符串
+    if (filterForm.questionType) {
+      params.type = typeMap[filterForm.questionType] || undefined
+    }
+    if (filterForm.difficulty) {
+      params.difficulty = difficultyMap[filterForm.difficulty] || undefined
+    }
+    const response = await getQuestions(params)
     if (response.code === 200 && response.data) {
       const list = response.data.questions || response.data.data || response.data || []
-      questionList.value = list.map((q: any) => ({
+      questionList.value = (Array.isArray(list) ? list : []).map((q: any) => ({
         id: q.question_id || q.id,
-        title: q.title,
+        title: q.title || '',
         content: q.description || q.content || '',
-        questionType: q.question_type || q.questionType || 0,
+        questionType: reverseTypeMap[q.type] || q.questionType || 1,
         categoryName: q.category_name || q.categoryName || '',
-        difficulty: { EASY: 1, MEDIUM: 2, HARD: 3 }[q.difficulty] || q.difficulty || 1,
+        difficulty: reverseDifficultyMap[q.difficulty] || q.difficulty || 1,
         score: q.score || 10,
         useCount: q.use_count || q.useCount || 0,
-        status: q.status === 'ACTIVE' ? 1 : 0,
+        status: q.status === 'ACTIVE' || q.is_active !== false ? 1 : 0,
         createTime: q.created_at || q.createTime || '',
         tags: q.tags || [],
-        answer: q.metadata_json || q.answer || ''
+        answer: q.solution_code || q.answer || '',
+        language: q.language || 'python',
+        type: q.type,
+        difficulty_raw: q.difficulty,
+        description: q.description || '',
+        test_cases: q.test_cases || [],
+        is_active: q.is_active,
+        time_limit: q.time_limit,
+        memory_limit: q.memory_limit,
+        solution_code: q.solution_code,
       }))
       pagination.total = response.data.total || questionList.value.length
     }
