@@ -47,6 +47,18 @@
           clearable
           class="search-input"
         />
+        <el-select v-model="filterMajor" placeholder="选择专业" clearable class="filter-select">
+          <el-option label="全部专业" value="" />
+          <el-option label="计算机科学与技术" value="计算机科学与技术" />
+          <el-option label="软件工程" value="软件工程" />
+          <el-option label="数据科学与大数据技术" value="数据科学与大数据技术" />
+        </el-select>
+        <el-select v-model="filterGrade" placeholder="选择年级" clearable class="filter-select">
+          <el-option label="全部年级" value="" />
+          <el-option label="2023级" value="2023级" />
+          <el-option label="2024级" value="2024级" />
+          <el-option label="2025级" value="2025级" />
+        </el-select>
         <el-select v-model="filterStatus" placeholder="选择状态" clearable class="filter-select">
           <el-option label="全部状态" value="" />
           <el-option label="激活" value="active" />
@@ -62,6 +74,8 @@
         <el-table-column prop="username" label="用户名" width="120" />
         <el-table-column prop="email" label="邮箱" min-width="180" />
         <el-table-column prop="phone" label="手机号" width="120" />
+        <el-table-column prop="major" label="专业" width="150" />
+        <el-table-column prop="grade" label="年级" width="100" />
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="scope">
             <el-tag :type="scope.row.status === 'active' ? 'success' : 'danger'" effect="dark" size="small">
@@ -171,6 +185,20 @@
         <el-form-item label="手机号">
           <el-input v-model="form.phone" />
         </el-form-item>
+        <el-form-item label="专业">
+          <el-select v-model="form.major">
+            <el-option label="计算机科学与技术" value="计算机科学与技术" />
+            <el-option label="软件工程" value="软件工程" />
+            <el-option label="数据科学与大数据技术" value="数据科学与大数据技术" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="年级">
+          <el-select v-model="form.grade">
+            <el-option label="2023级" value="2023级" />
+            <el-option label="2024级" value="2024级" />
+            <el-option label="2025级" value="2025级" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-switch v-model="form.status" active-value="active" inactive-value="inactive" />
         </el-form-item>
@@ -220,6 +248,8 @@ function parseExcelFile(file: File): Promise<any[]> {
               username: parts[2] || '',
               email: parts[3] || '',
               phone: parts[4] || '',
+              major: parts[5] || '',
+              grade: parts[6] || '',
               status: 'active'
             })
           }
@@ -250,6 +280,12 @@ function validateStudentData(student: any): { valid: boolean; error?: string } {
   }
   if (!student.phone || !/^1[3-9]\d{9}$/.test(student.phone)) {
     return { valid: false, error: '手机号格式错误' }
+  }
+  if (!student.major) {
+    return { valid: false, error: '专业不能为空' }
+  }
+  if (!student.grade) {
+    return { valid: false, error: '年级不能为空' }
   }
   return { valid: true }
 }
@@ -283,6 +319,8 @@ async function processBatchImport(file: File) {
 }
 
 const searchKeyword = ref('')
+const filterMajor = ref('')
+const filterGrade = ref('')
 const filterStatus = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -299,6 +337,8 @@ const form = ref({
   username: '',
   email: '',
   phone: '',
+  major: '',
+  grade: '',
   status: 'active'
 })
 
@@ -309,20 +349,14 @@ const loadStudents = async () => {
   try {
     const result = await getStudents({
       keyword: searchKeyword.value,
+      major: filterMajor.value,
+      grade: filterGrade.value,
       status: filterStatus.value,
       page: currentPage.value,
       pageSize: pageSize.value
     })
-    const raw = result.data?.students || result.data?.list || result.data || []
-    students.value = (Array.isArray(raw) ? raw : []).map((s: any) => ({
-      id: s.student_id || s.id || '',
-      name: s.real_name || s.name || '',
-      username: s.username || '',
-      email: s.email || '',
-      phone: s.phone || '',
-      status: s.is_active ? 'active' : 'inactive'
-    }))
-    total.value = result.data?.total || students.value.length
+    students.value = result.data?.list || result.data || []
+    total.value = result.data?.total || 100
   } catch (error) {
     ElMessage.error('加载学生数据失败')
   }
@@ -341,12 +375,20 @@ const filteredStudents = computed(() => {
   
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(s =>
+    result = result.filter(s => 
       s.name.toLowerCase().includes(keyword) ||
       s.id.toLowerCase().includes(keyword)
     )
   }
-
+  
+  if (filterMajor.value) {
+    result = result.filter(s => s.major === filterMajor.value)
+  }
+  
+  if (filterGrade.value) {
+    result = result.filter(s => s.grade === filterGrade.value)
+  }
+  
   if (filterStatus.value) {
     result = result.filter(s => s.status === filterStatus.value)
   }
@@ -396,6 +438,8 @@ const addStudent = () => {
     username: '',
     email: '',
     phone: '',
+    major: '',
+    grade: '',
     status: 'active'
   }
   studentDialogVisible.value = true

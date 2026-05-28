@@ -260,14 +260,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getCourses } from '../api/course'
-import { getClasses } from '../api/class'
-import { getAssignments } from '../api/assignment'
-import { getQuestions } from '../api/question'
-import {
+import { 
   Refresh,
   Trophy,
   TrendCharts
@@ -313,11 +309,24 @@ const submitRules = {
   ]
 }
 
-const courses = ref([])
+const courses = ref([
+  { courseId: 'C001', courseName: '数据结构与算法' },
+  { courseId: 'C002', courseName: '操作系统' },
+  { courseId: 'C003', courseName: '计算机网络' }
+])
 
-const assignments = ref([])
+const assignments = ref([
+  { assignmentId: 'A001', title: '第一次作业', courseId: 'C001' },
+  { assignmentId: 'A002', title: '第二次作业', courseId: 'C001' },
+  { assignmentId: 'A003', title: '第一次作业', courseId: 'C002' }
+])
 
-const questions = ref([])
+const questions = ref([
+  { questionId: 'Q001', assignmentId: 'A001' },
+  { questionId: 'Q002', assignmentId: 'A001' },
+  { questionId: 'Q003', assignmentId: 'A002' },
+  { questionId: 'Q004', assignmentId: 'A003' }
+])
 
 const submitting = ref(false)
 const evaluationDialogVisible = ref(false)
@@ -336,44 +345,44 @@ const filteredQuestions = computed(() => {
   return questions.value.filter(q => q.assignmentId === submitForm.assignmentId)
 })
 
-const submitHistory = ref([])
-
-const loadDropdowns = async () => {
-  try {
-    const [coursesRes, classesRes, assignmentsRes, questionsRes] = await Promise.all([
-      getCourses(),
-      getClasses(),
-      getAssignments(),
-      getQuestions()
-    ])
-    if (coursesRes.code === 200 && coursesRes.data) {
-      courses.value = (coursesRes.data || []).map((c: any) => ({
-        id: c.course_id || c.id,
-        name: c.course_name || c.name
-      }))
-    }
-    if (classesRes.code === 200 && classesRes.data) {
-      // assignments need class-id for lookup
-    }
-    if (assignmentsRes.code === 200 && assignmentsRes.data) {
-      assignments.value = (assignmentsRes.data || []).map((a: any) => ({
-        id: a.assignment_id || a.id,
-        title: a.title,
-        courseId: a.class_id,
-        questionId: a.question_id
-      }))
-    }
-    if (questionsRes.code === 200 && questionsRes.data) {
-      questions.value = (questionsRes.data || []).map((q: any) => ({
-        id: q.question_id || q.id,
-        title: q.title,
-        assignmentId: assignments.value.find((a: any) => a.questionId === (q.question_id || q.id))?.id || ''
-      }))
-    }
-  } catch (e) {
-    console.error('加载下拉选项失败:', e)
+const submitHistory = ref([
+  {
+    submissionId: 'S001',
+    assignmentId: 'A001',
+    questionId: 'Q001',
+    studentId: '20240001',
+    code: 'print("Hello World")',
+    language: 'python',
+    submitTime: '2024-01-15 14:30',
+    status: '已评分',
+    score: 95,
+    ranking: 2
+  },
+  {
+    submissionId: 'S002',
+    assignmentId: 'A001',
+    questionId: 'Q002',
+    studentId: '20240001',
+    code: 'print("Hello World")',
+    language: 'python',
+    submitTime: '2024-01-20 10:15',
+    status: '已评分',
+    score: 88,
+    ranking: 5
+  },
+  {
+    submissionId: 'S003',
+    assignmentId: 'A002',
+    questionId: 'Q003',
+    studentId: '20240001',
+    code: 'print("Hello World")',
+    language: 'python',
+    submitTime: '2024-01-25 09:20',
+    status: '已评分',
+    score: 76,
+    ranking: 8
   }
-}
+])
 
 const getStatusType = (status: string): 'success' | 'warning' | 'info' | 'danger' => {
   switch (status) {
@@ -476,10 +485,6 @@ const refreshHistory = () => {
 const goBack = () => {
   router.back()
 }
-
-onMounted(() => {
-  loadDropdowns()
-})
 </script>
 
 <style scoped>

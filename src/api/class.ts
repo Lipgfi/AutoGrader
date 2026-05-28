@@ -29,8 +29,3 @@ export const importStudents = async (classId: string, data: any) => {
 export const removeStudentFromClass = async (classId: string, studentUserId: string) => {
   return await request.delete(`/classes/${classId}/students/${studentUserId}`)
 }
-
-// 删除班级
-export const deleteClass = async (classId: string) => {
-  return await request.delete(`/classes/${classId}`)
-}

@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-// B3 判题服务配置
+// B3 判题服务配置 - 通过 Vite 代理转发，避免 CORS
 const b3Instance = axios.create({
   baseURL: '/api/v1/b3',
   timeout: 60000,
@@ -27,7 +27,13 @@ b3Instance.interceptors.response.use(
     return response.data
   },
   (error) => {
-    console.warn('[B3 Response Error]', error?.response?.status, error?.config?.url)
+    console.error('[B3 Response Error]', error)
+    // 改为 console.warn，错误由调用方自行处理，避免弹窗干扰用户体验
+    if (error.response) {
+      console.warn('[B3] 评测服务返回错误:', error.response.status, error.response.data?.message || 'Unknown error')
+    } else {
+      console.warn('[B3] 无法连接评测服务，请检查网络')
+    }
     return Promise.reject(error)
   }
 )

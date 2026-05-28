@@ -1,4 +1,6 @@
+// @ts-expect-error vitest types may not be available in all environments
 import { describe, it, expect } from 'vitest'
+// @ts-expect-error vitest types may not be available in all environments
 import { mount } from '@vue/test-utils'
 import FormComponent from '../components/Form/index.vue'
 

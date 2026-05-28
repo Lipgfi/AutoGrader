@@ -25,7 +25,7 @@
       <template #footer>
         <el-button @click="() => {
           emit('cancel')
-          visible.value = false
+          visible = false
         }">{{ cancelText }}</el-button>
         <el-button type="primary" @click="() => emit('confirm')">{{ confirmText }}</el-button>
       </template>

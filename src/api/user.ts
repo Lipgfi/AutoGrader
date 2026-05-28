@@ -20,12 +20,7 @@ export const createTeacher = async (data: any) => {
   return await request.post('/users', data)
 }
 
-// 启用/禁用用户
-export const toggleUserStatus = async (userId: string) => {
+// 禁用用户
+export const deactivateUser = async (userId: string) => {
   return await request.post(`/users/${userId}/deactivate`)
-}
-
-// 删除用户
-export const deleteUser = async (userId: string) => {
-  return await request.delete(`/users/${userId}`)
 }

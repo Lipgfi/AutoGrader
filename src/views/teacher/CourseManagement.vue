@@ -140,7 +140,7 @@
                   <el-tag type="info" effect="plain">{{ scope.row.studentCount }} 人</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="class_code" label="班级编号" width="120" />
+              <el-table-column prop="semester" label="学期" width="140" />
               <el-table-column prop="createTime" label="创建时间" width="160" />
               <el-table-column label="操作" width="280" fixed="right">
                 <template #default="scope">
@@ -149,9 +149,6 @@
                   </el-button>
                   <el-button type="primary" link size="small" @click="importStudents(scope.row)">
                     导入学生
-                  </el-button>
-                  <el-button type="primary" link size="small" @click="showAddStudentDialog(scope.row)">
-                    添加学生
                   </el-button>
                   <el-button type="primary" link size="small" @click="editClass(scope.row)">
                     编辑
@@ -244,8 +241,11 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="班级编号" prop="classCode">
-          <el-input v-model="classForm.classCode" placeholder="请输入班级编号，如 01" />
+        <el-form-item label="学期" prop="semester">
+          <el-select v-model="classForm.semester" placeholder="请选择学期" style="width: 100%">
+            <el-option label="2026春季学期" value="2026春季学期" />
+            <el-option label="2025秋季学期" value="2025秋季学期" />
+          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -309,53 +309,7 @@
         </el-button>
       </template>
     </el-dialog>
-
-    <!-- 添加学生对话框 -->
-    <el-dialog
-      v-model="addStudentDialogVisible"
-      title="添加学生"
-      width="500px"
-    >
-      <div style="margin-bottom: 16px;">
-        <el-input
-          v-model="addStudentId"
-          placeholder="输入学号搜索"
-          clearable
-          @keyup.enter="searchStudent"
-        >
-          <template #append>
-            <el-button @click="searchStudent" :loading="searchingStudent">
-              <el-icon><Search /></el-icon>
-              搜索
-            </el-button>
-          </template>
-        </el-input>
-      </div>
-      <div v-if="foundStudent" class="search-result">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="学号">{{ foundStudent.student_id }}</el-descriptions-item>
-          <el-descriptions-item label="姓名">{{ foundStudent.real_name }}</el-descriptions-item>
-          <el-descriptions-item label="邮箱">{{ foundStudent.email }}</el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="foundStudent.is_active ? 'success' : 'danger'" size="small">
-              {{ foundStudent.is_active ? '正常' : '已禁用' }}
-            </el-tag>
-          </el-descriptions-item>
-        </el-descriptions>
-        <div style="margin-top: 16px; text-align: center;">
-          <el-button type="primary" @click="confirmAddStudent" :loading="addingStudent">
-            添加到当前班级
-          </el-button>
-        </div>
-      </div>
-      <div v-if="searchDone && !foundStudent" style="text-align: center; color: #999; padding: 20px;">
-        未找到该学号的学生
-      </div>
-      <template #footer>
-        <el-button @click="addStudentDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
-
+    
     <el-dialog
       v-model="studentsDialogVisible"
       :title="`学生列表 - ${selectedClass?.name || ''}`"
@@ -375,7 +329,14 @@
           <el-table-column prop="studentId" label="学号" width="120" />
           <el-table-column prop="name" label="姓名" width="100" />
           <el-table-column prop="email" label="邮箱" />
-          <el-table-column prop="joinedAt" label="加入时间" width="170" />
+          <el-table-column prop="phone" label="手机号" width="120" />
+          <el-table-column prop="avgScore" label="平均分" width="100" align="center">
+            <template #default="scope">
+              <el-tag :type="getScoreType(scope.row.avgScore)" size="small">
+                {{ scope.row.avgScore.toFixed(1) }}
+              </el-tag>
+            </template>
+          </el-table-column>
         </el-table>
       </div>
     </el-dialog>
@@ -386,11 +347,8 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { getCourses, createCourse, updateCourse, deleteCourse } from '../../api/course'
-import { getAssignments } from '../../api/assignment'
-import { getClasses, createClass, getClassStudents, deleteClass as deleteClassApi, importStudents as importClassStudents, addStudentToClass } from '../../api/class'
-import { getStudents } from '../../api/student'
-import { Search } from '@element-plus/icons-vue'
+import { getCourses, createCourse } from '../../api/course'
+import { importStudents as importClassStudents } from '../../api/class'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, 
@@ -415,12 +373,6 @@ const courseDialogVisible = ref(false)
 const classDialogVisible = ref(false)
 const importDialogVisible = ref(false)
 const studentsDialogVisible = ref(false)
-const addStudentDialogVisible = ref(false)
-const addStudentId = ref('')
-const foundStudent = ref<any>(null)
-const searchingStudent = ref(false)
-const addingStudent = ref(false)
-const searchDone = ref(false)
 const editingCourse = ref<any>(null)
 const editingClass = ref<any>(null)
 const selectedClass = ref<any>(null)
@@ -442,8 +394,8 @@ const courseForm = reactive({
 
 const classForm = reactive({
   name: '',
-  classCode: '',
-  courseId: ''
+  courseId: '',
+  semester: '2026春季学期'
 })
 
 const courseRules: FormRules = {
@@ -454,15 +406,68 @@ const courseRules: FormRules = {
 
 const classRules: FormRules = {
   name: [{ required: true, message: '请输入班级名称', trigger: 'blur' }],
-  classCode: [{ required: true, message: '请输入班级编号', trigger: 'blur' }],
-  courseId: [{ required: true, message: '请选择课程', trigger: 'change' }]
+  courseId: [{ required: true, message: '请选择课程', trigger: 'change' }],
+  semester: [{ required: true, message: '请选择学期', trigger: 'change' }]
 }
 
-const courses = ref([])
+const courses = ref([
+  {
+    id: 'C001',
+    name: '数据结构与算法',
+    code: 'CS101',
+    semester: '2026春季学期',
+    color: '#165DFF',
+    status: 'active',
+    classCount: 2,
+    assignmentCount: 8,
+    classes: [
+      { id: 'CL001', name: '计算机2401班' },
+      { id: 'CL002', name: '计算机2402班' }
+    ]
+  },
+  {
+    id: 'C002',
+    name: '操作系统原理',
+    code: 'CS201',
+    semester: '2026春季学期',
+    color: '#00B42A',
+    status: 'active',
+    classCount: 1,
+    assignmentCount: 6,
+    classes: [
+      { id: 'CL003', name: '计算机2401班' }
+    ]
+  },
+  {
+    id: 'C003',
+    name: '计算机网络',
+    code: 'CS301',
+    semester: '2025秋季学期',
+    color: '#FF7D00',
+    status: 'ended',
+    classCount: 3,
+    assignmentCount: 10,
+    classes: [
+      { id: 'CL004', name: '计算机2301班' },
+      { id: 'CL005', name: '计算机2302班' },
+      { id: 'CL006', name: '计算机2303班' }
+    ]
+  }
+])
 
-const classes = ref([])
+const classes = ref([
+  { id: 'CL001', name: '计算机2401班', courseId: 'C001', courseName: '数据结构与算法', studentCount: 45, semester: '2026春季学期', createTime: '2026-02-20' },
+  { id: 'CL002', name: '计算机2402班', courseId: 'C001', courseName: '数据结构与算法', studentCount: 42, semester: '2026春季学期', createTime: '2026-02-20' },
+  { id: 'CL003', name: '计算机2401班', courseId: 'C002', courseName: '操作系统原理', studentCount: 45, semester: '2026春季学期', createTime: '2026-02-25' }
+])
 
-const students = ref([])
+const students = ref([
+  { studentId: '20240001', name: '张三', email: 'zhangsan@example.com', phone: '13800138001', avgScore: 92.5 },
+  { studentId: '20240002', name: '李四', email: 'lisi@example.com', phone: '13800138002', avgScore: 85.0 },
+  { studentId: '20240003', name: '王五', email: 'wangwu@example.com', phone: '13800138003', avgScore: 78.5 },
+  { studentId: '20240004', name: '赵六', email: 'zhaoliu@example.com', phone: '13800138004', avgScore: 90.0 },
+  { studentId: '20240005', name: '钱七', email: 'qianqi@example.com', phone: '13800138005', avgScore: 95.5 }
+])
 
 const filteredCourses = computed(() => {
   let result = courses.value
@@ -547,14 +552,12 @@ const handleCourseCommand = (command: any) => {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
         type: 'warning'
-      }).then(async () => {
-        try {
-          await deleteCourse(String(course.id))
-          await loadCourses()
-          ElMessage.success('删除成功')
-        } catch (e) {
-          ElMessage.error('删除失败')
+      }).then(() => {
+        const index = courses.value.findIndex(c => c.id === course.id)
+        if (index > -1) {
+          courses.value.splice(index, 1)
         }
+        ElMessage.success('删除成功')
       })
       break
   }
@@ -567,23 +570,13 @@ const saveCourse = async () => {
     await courseFormRef.value.validate()
     
     if (editingCourse.value) {
-      try {
-        await updateCourse(String(editingCourse.value.id), {
-          courseName: courseForm.name,
-          courseCode: courseForm.code,
-          semester: courseForm.semester,
-          description: courseForm.description
-        })
-        await loadCourses()
-        ElMessage.success('课程更新成功')
-      } catch (e) {
-        ElMessage.error('课程更新失败')
-      }
+      Object.assign(editingCourse.value, courseForm)
+      ElMessage.success('课程更新成功')
     } else {
       // 调用API创建课程
       const response = await createCourse({
-        courseName: courseForm.name,
-        courseCode: courseForm.code,
+        name: courseForm.name,
+        code: courseForm.code,
         semester: courseForm.semester,
         description: courseForm.description
       })
@@ -607,54 +600,16 @@ const saveCourse = async () => {
 // 加载课程列表
 const loadCourses = async () => {
   try {
-    const [coursesRes, classesRes, assignmentsRes] = await Promise.all([
-      getCourses(),
-      getClasses(),
-      getAssignments()
-    ])
-
-    const apiClasses = (classesRes.code === 200 && classesRes.data) ? (classesRes.data || []) : []
-    const apiAssignments = (assignmentsRes.code === 200 && assignmentsRes.data) ? (assignmentsRes.data || []) : []
-
-    // 按 course_id 统计班级数
-    const classCountByCourse: Record<number, number> = {}
-    const classesByCourse: Record<number, any[]> = {}
-    for (const cls of apiClasses) {
-      const cid = cls.course_id || cls.courseId
-      if (cid) {
-        classCountByCourse[cid] = (classCountByCourse[cid] || 0) + 1
-        if (!classesByCourse[cid]) classesByCourse[cid] = []
-        classesByCourse[cid].push({ id: cls.class_id || cls.id, name: cls.class_name || cls.name })
-      }
-    }
-
-    // 按 course_id 统计作业数（通过 class_id → course_id 关联）
-    const assignmentCountByCourse: Record<number, number> = {}
-    for (const a of apiAssignments) {
-      const cls = apiClasses.find((c: any) => (c.class_id || c.id) === (a.class_id || a.classId))
-      if (cls) {
-        const cid = cls.course_id || cls.courseId
-        if (cid) {
-          assignmentCountByCourse[cid] = (assignmentCountByCourse[cid] || 0) + 1
-        }
-      }
-    }
-
-    if (coursesRes.code === 200 && coursesRes.data) {
-      courses.value = (coursesRes.data || []).map((course: any) => {
-        const cid = course.course_id || course.id
-        return {
-          ...course,
-          id: cid,
-          name: course.course_name || course.name,
-          code: course.course_code || course.code,
-          color: course.color || '#165DFF',
-          status: course.status || 'active',
-          classCount: classCountByCourse[cid] || 0,
-          assignmentCount: assignmentCountByCourse[cid] || 0,
-          classes: classesByCourse[cid] || []
-        }
-      })
+    const response = await getCourses()
+    if (response.code === 200 && response.data) {
+      courses.value = (response.data.data || []).map((course: any) => ({
+        ...course,
+        color: course.color || '#165DFF',
+        status: course.status || 'active',
+        classCount: course.classCount || 0,
+        assignmentCount: course.assignmentCount || 0,
+        classes: course.classes || []
+      }))
     }
   } catch (error) {
     console.error('加载课程失败', error)
@@ -663,7 +618,6 @@ const loadCourses = async () => {
 
 onMounted(() => {
   loadCourses()
-  loadClasses()
 })
 
 const manageClasses = (course: any) => {
@@ -679,8 +633,8 @@ const showCreateClassDialog = () => {
   editingClass.value = null
   Object.assign(classForm, {
     name: '',
-    classCode: '',
-    courseId: selectedCourseId.value
+    courseId: selectedCourseId.value,
+    semester: '2026春季学期'
   })
   classDialogVisible.value = true
 }
@@ -689,39 +643,49 @@ const editClass = (cls: any) => {
   editingClass.value = cls
   Object.assign(classForm, {
     name: cls.name,
-    classCode: cls.class_code || cls.classCode || '',
-    courseId: cls.courseId || cls.course_id
+    courseId: cls.courseId,
+    semester: cls.semester
   })
   classDialogVisible.value = true
 }
 
 const saveClass = async () => {
   if (!classFormRef.value) return
-
+  
   try {
     await classFormRef.value.validate()
-
+    
+    const course = courses.value.find(c => c.id === classForm.courseId)
+    
     if (editingClass.value) {
+      Object.assign(editingClass.value, {
+        name: classForm.name,
+        semester: classForm.semester
+      })
       ElMessage.success('班级更新成功')
     } else {
-      const response = await createClass({
-        courseId: Number(classForm.courseId),
-        className: classForm.name,
-        classCode: classForm.classCode
-      })
-
-      if (response.code === 200 && response.data) {
-        ElMessage.success('班级创建成功')
-        await loadClasses()
-      } else {
-        ElMessage.error('班级创建失败')
+      const newClass = {
+        id: `CL${Date.now()}`,
+        name: classForm.name,
+        courseId: classForm.courseId,
+        courseName: course?.name || '',
+        studentCount: 0,
+        semester: classForm.semester,
+        createTime: new Date().toLocaleDateString('zh-CN')
       }
+      classes.value.push(newClass)
+      
+      if (course) {
+        course.classes.push({ id: newClass.id, name: newClass.name })
+        course.classCount++
+      }
+      
+      ElMessage.success('班级创建成功')
     }
-
+    
     classDialogVisible.value = false
   } catch (error) {
-    console.error('班级保存失败', error)
-    ElMessage.error('班级保存失败')
+    console.error('表单校验失败', error)
   }
 }
 
@@ -730,14 +694,22 @@ const deleteClass = (cls: any) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(async () => {
-    try {
-      await deleteClassApi(String(cls.id))
-      await loadClasses()
-      ElMessage.success('删除成功')
-    } catch (e) {
-      ElMessage.error('删除失败')
+  }).then(() => {
+    const index = classes.value.findIndex(c => c.id === cls.id)
+    if (index > -1) {
+      classes.value.splice(index, 1)
     }
+    
+    const course = courses.value.find(c => c.id === cls.courseId)
+    if (course) {
+      const classIndex = course.classes.findIndex(c => c.id === cls.id)
+      if (classIndex > -1) {
+        course.classes.splice(classIndex, 1)
+        course.classCount--
+      }
+    }
+    
+    ElMessage.success('删除成功')
   })
 }
 
@@ -745,49 +717,6 @@ const importStudents = (cls: any) => {
   selectedClass.value = cls
   previewData.value = []
   importDialogVisible.value = true
-}
-
-const showAddStudentDialog = (cls: any) => {
-  selectedClass.value = cls
-  addStudentId.value = ''
-  foundStudent.value = null
-  searchDone.value = false
-  addStudentDialogVisible.value = true
-}
-
-const searchStudent = async () => {
-  const keyword = addStudentId.value.trim()
-  if (!keyword) return
-  searchingStudent.value = true
-  searchDone.value = false
-  foundStudent.value = null
-  try {
-    const res = await getStudents({ keyword, size: 10 })
-    if (res.code === 200 && res.data) {
-      const list = res.data.students || res.data || []
-      foundStudent.value = list.find((s: any) => s.student_id === keyword) || list[0] || null
-    }
-  } catch (e) { console.error('搜索学生失败', e) }
-  finally {
-    searchingStudent.value = false
-    searchDone.value = true
-  }
-}
-
-const confirmAddStudent = async () => {
-  if (!foundStudent.value || !selectedClass.value) return
-  addingStudent.value = true
-  try {
-    const classId = selectedClass.value.id || selectedClass.value.class_id
-    await addStudentToClass(String(classId), { studentUserId: foundStudent.value.user_id })
-    ElMessage.success(`${foundStudent.value.student_id} 已添加到班级`)
-    addStudentDialogVisible.value = false
-    await loadClasses()
-  } catch (e: any) {
-    ElMessage.error(e?.response?.data?.detail || '添加失败')
-  } finally {
-    addingStudent.value = false
-  }
 }
 
 const handleFileChange = async (file: any) => {
@@ -897,7 +826,7 @@ const confirmImport = async () => {
       }))
     })
     
-    if (response.code === 200) {
+    if (response.data && response.data.code === 200) {
       const importedCount = response.data?.count || previewData.value.length
       selectedClass.value.studentCount += importedCount
       ElMessage.success(`成功导入 ${importedCount} 名学生`)
@@ -917,52 +846,27 @@ const confirmImport = async () => {
 const loadClasses = async () => {
   try {
     const response = await getClasses()
-    if (response.code === 200 && response.data) {
-      const list = (response.data || []).map((cls: any) => ({
+    if (response.data && response.data.code === 200) {
+      classes.value = response.data.map((cls: any) => ({
         ...cls,
-        id: cls.class_id || cls.id,
-        name: cls.class_name || cls.name,
-        courseId: cls.course_id || cls.courseId,
         courseName: cls.course_name || '',
-        studentCount: 0,
+        studentCount: cls.student_count || 0,
         createTime: cls.create_time || ''
       }))
-
-      // 异步加载每个班级的学生数
-      await Promise.all(list.map(async (c: any) => {
-        try {
-          const sRes = await getClassStudents(String(c.id))
-          if (sRes.code === 200 && sRes.data) {
-            c.studentCount = (sRes.data || []).length
-          }
-        } catch (e) { /* ignore */ }
-      }))
-
-      classes.value = list
     }
   } catch (error) {
     console.error('加载班级列表失败:', error)
   }
 }
 
-const viewStudents = async (cls: any) => {
+const getClasses = async (params?: any) => {
+  const { request } = await import('../../api/interceptors')
+  return await request.get('/classes', params)
+}
+
+const viewStudents = (cls: any) => {
   selectedClass.value = cls
   studentsDialogVisible.value = true
-  try {
-    const response = await getClassStudents(cls.id || cls.class_id)
-    if (response.code === 200 && response.data) {
-      students.value = (response.data || []).map((s: any) => ({
-        id: s.user_id || s.id,
-        name: s.real_name || s.name,
-        studentId: s.student_id || s.studentId,
-        email: s.email || '',
-        phone: s.phone || '',
-        joinedAt: s.joined_at ? new Date(s.joined_at).toLocaleString('zh-CN') : ''
-      }))
-    }
-  } catch (error) {
-    console.error('加载学生列表失败', error)
-  }
 }
 
 const handleLogout = () => {

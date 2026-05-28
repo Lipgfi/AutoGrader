@@ -10,15 +10,15 @@ export const getSubmissionDetail = async (submissionId: string) => {
   return await request.get(`/submissions/${submissionId}`)
 }
 
-// 创建提交到 B4 主数据库
+// 创建提交记录（B4 主后端）
 export const createSubmission = async (data: {
   question_id: string
-  assignment_id: number
+  assignment_id: string
   code: string
   language: string
-  student_user_id: number
+  student_user_id: string
 }) => {
-  return await request.post('/submissions', data)
+  return await request.post('/submission', data)
 }
 
 // 获取作业全部提交
@@ -28,12 +28,12 @@ export const getAssignmentSubmissions = async (assignmentId: string, params?: an
 
 // 更新提交结果
 export const updateSubmissionResult = async (submissionId: string, data: any) => {
-  return await request.put(`/submissions/${submissionId}/result`, data)
+  return await request.patch(`/submissions/${submissionId}/result`, data)
 }
 
 // 手动修改提交分数
 export const overrideSubmissionScore = async (submissionId: string, data: any) => {
-  return await request.put(`/submissions/${submissionId}/override`, data)
+  return await request.patch(`/submissions/${submissionId}/override`, data)
 }
 
 // 获取作业提交统计

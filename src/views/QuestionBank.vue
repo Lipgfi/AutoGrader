@@ -498,16 +498,92 @@ const treeProps = {
   label: 'name'
 }
 
-const categoryTree = ref([])
+const categoryTree = ref([
+  {
+    id: 1,
+    name: '全部题目',
+    count: 156,
+    children: [
+      { id: 11, name: 'Python编程', count: 45 },
+      { id: 12, name: '数据结构', count: 38 },
+      { id: 13, name: '算法设计', count: 32 },
+      { id: 14, name: '数据库', count: 25 },
+      { id: 15, name: '计算机网络', count: 16 }
+    ]
+  }
+])
 
-const categoryOptions = ref([])
+const categoryOptions = ref([
+  { id: 11, name: 'Python编程' },
+  { id: 12, name: '数据结构' },
+  { id: 13, name: '算法设计' },
+  { id: 14, name: '数据库' },
+  { id: 15, name: '计算机网络' }
+])
 
-const questionList = ref([])
+const questionList = ref([
+  {
+    id: 1,
+    title: '两数之和',
+    content: '给定一个整数数组 nums 和一个整数目标值 target，请你在该数组中找出和为目标值 target 的那两个整数，并返回它们的数组下标。',
+    questionType: 1,
+    categoryName: '算法设计',
+    difficulty: 1,
+    score: 10,
+    useCount: 25,
+    status: 1,
+    createTime: '2024-01-15 10:30',
+    tags: ['数组', '哈希表'],
+    answer: '使用哈希表存储已遍历的元素及其索引，遍历数组时检查 target - nums[i] 是否在哈希表中。'
+  },
+  {
+    id: 2,
+    title: '反转链表',
+    content: '给你单链表的头节点 head，请你反转链表，并返回反转后的链表。',
+    questionType: 1,
+    categoryName: '数据结构',
+    difficulty: 2,
+    score: 15,
+    useCount: 18,
+    status: 1,
+    createTime: '2024-01-16 14:20',
+    tags: ['链表'],
+    answer: '使用迭代或递归方法，逐个反转链表节点的指针方向。'
+  },
+  {
+    id: 3,
+    title: '以下哪个是Python中的不可变数据类型？',
+    content: '请选择正确的答案。',
+    questionType: 2,
+    categoryName: 'Python编程',
+    difficulty: 1,
+    score: 5,
+    useCount: 30,
+    status: 1,
+    createTime: '2024-01-17 09:15',
+    tags: ['Python', '基础'],
+    answer: 'B'
+  },
+  {
+    id: 4,
+    title: 'SQL中用于删除表的语句是______',
+    content: '请填写正确的SQL语句。',
+    questionType: 3,
+    categoryName: '数据库',
+    difficulty: 1,
+    score: 5,
+    useCount: 22,
+    status: 1,
+    createTime: '2024-01-18 16:45',
+    tags: ['SQL', '基础'],
+    answer: 'DROP TABLE'
+  }
+])
 
 const pagination = reactive({
   currentPage: 1,
   pageSize: 10,
-  total: 0
+  total: 156
 })
 
 const questionFormRef = ref()
@@ -567,8 +643,10 @@ const handleCategoryClick = (data: any) => {
 }
 
 const handleSearch = () => {
-  pagination.currentPage = 1
-  loadQuestions()
+  loading.value = true
+  setTimeout(() => {
+    loading.value = false
+  }, 500)
 }
 
 const resetFilter = () => {
@@ -618,7 +696,7 @@ const deleteQuestion = async (row: any) => {
   }).then(async () => {
     try {
       const response = await deleteQuestionApi(row.id)
-      if (response.code === 200) {
+      if (response.data && response.data.code === 200) {
         const index = questionList.value.findIndex(q => q.id === row.id)
         if (index > -1) {
           questionList.value.splice(index, 1)
@@ -735,7 +813,7 @@ const saveQuestion = async () => {
             correctOption: questionForm.correctOption,
             fillBlanks: questionForm.fillBlanks
           })
-          if (response.code === 200) {
+          if (response.data && response.data.code === 200) {
             Object.assign(currentQuestion.value, {
               title: questionForm.title,
               content: questionForm.content,
@@ -763,13 +841,16 @@ const saveQuestion = async () => {
             correctOption: questionForm.correctOption,
             fillBlanks: questionForm.fillBlanks
           })
-          if (response.code === 200 && response.data) {
+          if (response.data && response.data.code === 200 && response.data.data) {
             questionList.value.unshift({
               id: response.data.id,
               title: questionForm.title,
               content: questionForm.content,
               difficulty: questionForm.difficulty,
               score: questionForm.score,
+              questionType: questionForm.questionType,
+              categoryName: categoryOptions.value.find(c => c.id === questionForm.categoryId)?.name || '未分类',
+              answer: questionForm.answer,
               status: questionForm.status,
               tags: questionForm.tags,
               useCount: 0,
@@ -811,45 +892,6 @@ const createHomeworkFromQuestion = (question: any) => {
   ElMessage.success(`已基于题目"${question.title}"创建作业`)
   viewDialogVisible.value = false
 }
-
-const loadQuestions = async () => {
-  loading.value = true
-  try {
-    const response = await getQuestions({
-      keyword: filterForm.keyword || undefined,
-      type: filterForm.questionType || undefined,
-      difficulty: filterForm.difficulty || undefined,
-      page: pagination.currentPage,
-      size: pagination.pageSize
-    })
-    if (response.code === 200 && response.data) {
-      const list = response.data.questions || response.data.data || response.data || []
-      questionList.value = list.map((q: any) => ({
-        id: q.question_id || q.id,
-        title: q.title,
-        content: q.description || q.content || '',
-        questionType: q.question_type || q.questionType || 0,
-        categoryName: q.category_name || q.categoryName || '',
-        difficulty: { EASY: 1, MEDIUM: 2, HARD: 3 }[q.difficulty] || q.difficulty || 1,
-        score: q.score || 10,
-        useCount: q.use_count || q.useCount || 0,
-        status: q.status === 'ACTIVE' ? 1 : 0,
-        createTime: q.created_at || q.createTime || '',
-        tags: q.tags || [],
-        answer: q.metadata_json || q.answer || ''
-      }))
-      pagination.total = response.data.total || questionList.value.length
-    }
-  } catch (error) {
-    console.error('加载题目失败', error)
-  } finally {
-    loading.value = false
-  }
-}
-
-onMounted(() => {
-  loadQuestions()
-})
 </script>
 
 <style scoped>
