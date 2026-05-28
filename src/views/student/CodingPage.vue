@@ -320,7 +320,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '../../stores/user'
 import { getQuestionDetail } from '../../api/question'
-import { evaluateSubmission, getB3QuestionCases } from '../../api/b3'
+import { evaluateSubmission, getB3QuestionDetail } from '../../api/b3'
 import { createSubmission, updateSubmissionResult } from '../../api/submission'
 import { getAssignments } from '../../api/assignment'
 import { request } from '../../api/interceptors'
@@ -503,31 +503,33 @@ const loadQuestion = async () => {
     const resolvedQId = route.params.id || 'Q001'
     questionId.value = resolvedQId as string
     console.log('[CodingPage] 请求题目详情:', questionId.value)
-    
-    // 尝试从 B3 题库获取题目
+
+    // 尝试从 B3 判题引擎获取题目（包含 test_cases）
     try {
-      const b3Response = await getB3QuestionCases(resolvedQId as string)
-      // B3 拦截器返回 response.data，所以 b3Response 就是实际数据
-      if (b3Response && (b3Response.data || b3Response.test_cases)) {
-        const questionData = b3Response.data || b3Response
+      const b3Response: any = await getB3QuestionDetail(resolvedQId as string)
+      // B3 拦截器返回 response.data，即题目详情对象
+      if (b3Response && b3Response.id) {
+        const q = b3Response
         currentProblem.value = {
-          id: resolvedQId as string,
-          title: questionData.title || questionData.question_title || `题目 ${resolvedQId}`,
-          difficulty: questionData.difficulty || '中等',
-          tags: questionData.tags || [],
-          description: questionData.description || '',
-          inputFormat: questionData.input_format || questionData.inputFormat || '',
-          outputFormat: questionData.output_format || questionData.outputFormat || '',
+          id: q.id,
+          title: q.title || `题目 ${resolvedQId}`,
+          difficulty: q.difficulty || '中等',
+          tags: q.metadata_json?.tags || [],
+          description: q.description || '',
+          inputFormat: q.metadata_json?.input_format || '',
+          outputFormat: q.metadata_json?.output_format || '',
           examples: [],
           constraints: [],
-          testcases: ((questionData.test_cases || questionData.testCases) || []).map((tc: any, index: number) => ({
-            id: index + 1,
-            input: tc.input || '',
-            expectedOutput: tc.expected_output || tc.expectedOutput || tc.output || ''
-          }))
+          testcases: (q.test_cases || []).map((tc: any, index: number) => ({
+            id: tc.case_no || index + 1,
+            input: tc.input_data || tc.input || '',
+            expectedOutput: tc.expected_output || '',
+          })),
         }
-        if (questionData.language) {
-          selectedLanguage.value = questionData.language
+        if (q.language) {
+          // B3 语言可能是 "shell"，映射到编辑器语言
+          const langMap: Record<string, string> = { shell: 'python', python: 'python', java: 'java', cpp: 'cpp', c: 'cpp', javascript: 'javascript' }
+          selectedLanguage.value = langMap[q.language] || q.language
         }
         testcases.value = currentProblem.value.testcases
         selectedTestcase.value = testcases.value[0]?.id || 1
@@ -535,17 +537,15 @@ const loadQuestion = async () => {
         return
       }
     } catch (b3Error) {
-      console.warn('[CodingPage] B3 题库接口不可用，尝试 B4 接口:', b3Error)
+      console.warn('[CodingPage] B3 题目接口不可用，尝试 B4 接口:', b3Error)
     }
-    
+
     // 从 B4 主后端获取题目详情
-    const response = await getQuestionDetail(resolvedQId as string)
-    
-    // B4 使用统一拦截器，返回 {code, data, message}
+    const response: any = await getQuestionDetail(resolvedQId as string)
     if (response && response.code === 200 && response.data) {
       const question = response.data
       currentProblem.value = {
-        id: question.id || resolvedQId,
+        id: question.question_id || question.id || resolvedQId,
         title: question.title || `题目 ${resolvedQId}`,
         difficulty: question.difficulty || '中等',
         tags: question.tags || [],
@@ -554,11 +554,11 @@ const loadQuestion = async () => {
         outputFormat: question.outputFormat || '',
         examples: question.examples || [],
         constraints: question.constraints || [],
-        testcases: (question.testCases || question.testcases || []).map((tc: any, index: number) => ({
-          id: tc.id || index + 1,
+        testcases: (question.test_cases || question.testCases || []).map((tc: any, index: number) => ({
+          id: tc.test_case_id || tc.id || index + 1,
           input: tc.input || '',
-          expectedOutput: tc.expectedOutput || tc.expected_output || tc.output || ''
-        }))
+          expectedOutput: tc.expected_output || tc.expectedOutput || '',
+        })),
       }
       if (question.language) {
         selectedLanguage.value = question.language
@@ -567,21 +567,20 @@ const loadQuestion = async () => {
       selectedTestcase.value = testcases.value[0]?.id || 1
       console.log('[CodingPage] 从 B4 加载题目成功:', currentProblem.value.title)
     } else {
-      // B4 也没有题目，显示错误提示
       currentProblem.value = {
         id: resolvedQId as string,
         title: '题目加载失败',
         difficulty: '',
         tags: [],
-        description: `未能加载题目 "${resolvedQId}"。请确保后端服务（B4 端口 8000）已启动。`,
+        description: `未能加载题目 "${resolvedQId}"。请确保后端服务（B3 端口 8003 / B4 端口 8000）已启动。`,
         inputFormat: '',
         outputFormat: '',
         examples: [],
         constraints: [],
-        testcases: []
+        testcases: [],
       }
       testcases.value = []
-      ElMessage.error('未找到该题目，请确保 B4 服务已启动（端口 8000）')
+      ElMessage.error('未找到该题目，请确保后端服务已启动')
     }
   } catch (error: any) {
     console.error('[CodingPage] 加载题目失败:', error)
@@ -595,7 +594,7 @@ const loadQuestion = async () => {
       outputFormat: '',
       examples: [],
       constraints: [],
-      testcases: []
+      testcases: [],
     }
     testcases.value = []
     ElMessage.error('加载题目失败，请确保后端服务已启动')
@@ -661,11 +660,14 @@ const submitCode = async () => {
       runtime: b3Result.runtime || 0,
       memory: b3Result.memory || 0,
       ranking: b3Result.ranking || 0,
-      testCases: (b3Result.case_results || []).map((cr: any) => ({
-        input: cr.input || '',
+      testCases: (b3Result.case_results || []).map((cr: any, index: number) => ({
+        id: cr.case_id || index + 1,
+        input: cr.description || cr.input || `测试用例 ${index + 1}`,
         expectedOutput: cr.expected_output || '',
         actualOutput: cr.actual_output || '',
-        passed: cr.passed
+        passed: cr.passed,
+        error: cr.error || '',
+        score: cr.score || 0,
       }))
     }
 

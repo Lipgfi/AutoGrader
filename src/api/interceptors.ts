@@ -18,8 +18,10 @@ const allMocks = [
 ]
 
 // 创建axios实例
+const apiBaseURL = import.meta.env.VITE_B4_API_BASE_URL || 'http://127.0.0.1:8000/api/v1'
+
 const axiosInstance: AxiosInstance = axios.create({
-  baseURL: '/api/v1',
+  baseURL: apiBaseURL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'

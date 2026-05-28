@@ -40,15 +40,16 @@ export interface B3EvaluateRequest {
   language: string
 }
 
-// B3 评测响应类型
+// B3 评测响应类型（对齐 B3 后端 EvaluationCaseResultRead）
 export interface B3CaseResult {
   case_id: string
-  input?: string
-  expected_output?: string
-  actual_output?: string
+  description: string
   passed: boolean
-  score?: number
-  comment?: string
+  score: number
+  actual_output: string | null
+  expected_output: string | null
+  error: string | null
+  execution_time_ms: number
 }
 
 export interface B3EvaluateResponse {
@@ -57,8 +58,8 @@ export interface B3EvaluateResponse {
   overall_score: number
   passed_count: number
   total_count: number
-  overall_comment?: string
-  static_issues?: string[]
+  overall_comment: string
+  static_issues: { code: string; message: string }[]
   case_results: B3CaseResult[]
 }
 
@@ -70,6 +71,21 @@ export const getB3Questions = async () => {
 // 获取题目详情
 export const getB3QuestionDetail = async (questionId: string) => {
   return await b3Instance.get(`/questions/${questionId}`)
+}
+
+// 创建题目到 B3 判题引擎
+export const createB3Question = async (data: {
+  id: string
+  title: string
+  description: string
+  question_type: string
+  difficulty: string
+  language: string
+  allowed_commands: string[]
+  metadata_json: Record<string, any>
+  test_cases: { input: string; expected_output: string; description: string; score_weight: number }[]
+}) => {
+  return await b3Instance.post('/questions', data)
 }
 
 // 获取题目测试用例
