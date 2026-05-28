@@ -308,6 +308,11 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/atom-one-dark.css'
+<<<<<<< HEAD
+=======
+import { getAssignments } from '../api/assignment'
+import { getAssignmentSubmissions, overrideSubmissionScore } from '../api/submission'
+>>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
 import { 
   ArrowLeft, 
   ArrowRight, 

@@ -1,1 +1,0 @@
-import{r as a}from"./interceptors-D6F2kB_x.js";const s=async()=>await a.get("/auth/captcha"),e=async t=>await a.post("/auth/login",t),n=async t=>await a.post("/auth/register",t);export{s as g,e as l,n as r};

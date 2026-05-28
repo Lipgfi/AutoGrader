@@ -24,3 +24,8 @@ export const updateAssignment = async (assignmentId: string, data: any) => {
 export const publishAssignment = async (assignmentId: string) => {
   return await request.post(`/assignments/${assignmentId}/publish`)
 }
+
+// 删除作业
+export const deleteAssignment = async (assignmentId: string) => {
+  return await request.delete(`/assignments/${assignmentId}`)
+}

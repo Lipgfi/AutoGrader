@@ -111,7 +111,6 @@
               导出成绩
             </el-button>
             <el-button
-              v-if="scope.row.status === 'draft'"
               type="danger"
               link
               size="small"
@@ -199,6 +198,7 @@
             type="datetime"
             placeholder="选择截止时间"
             style="width: 100%"
+            value-format="YYYY-MM-DD HH:mm:ss"
           />
         </el-form-item>
         
@@ -238,6 +238,7 @@
             type="datetime"
             placeholder="选择新的截止时间"
             style="width: 100%"
+            value-format="YYYY-MM-DD HH:mm:ss"
           />
         </el-form-item>
       </el-form>
@@ -334,7 +335,12 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+<<<<<<< HEAD
 import { getAssignments, createAssignment } from '../../api/assignment'
+=======
+import { request } from '../../api/interceptors'
+import { getAssignments, createAssignment, updateAssignment, deleteAssignment as deleteAssignmentApi } from '../../api/assignment'
+>>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
 import { getCourses } from '../../api/course'
 import { getQuestions } from '../../api/question'
 import { getClasses } from '../../api/class'
@@ -489,6 +495,15 @@ const filteredAssignments = computed(() => {
   return result
 })
 
+// 将 ISO/数据库返回的 datetime 字符串统一转成 "YYYY-MM-DD HH:mm:ss"
+const formatDeadline = (raw: string): string => {
+  if (!raw) return ''
+  const d = new Date(raw)
+  if (isNaN(d.getTime())) return raw
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
 const isExpired = (deadline: string): boolean => {
   return new Date(deadline) < new Date()
 }
@@ -600,9 +615,29 @@ const loadData = async () => {
     if (assignmentsResponse.data && assignmentsResponse.data.code === 200 && assignmentsResponse.data.data) {
       assignments.value = assignmentsResponse.data.map((a: any) => ({
         ...a,
+<<<<<<< HEAD
         courseName: courses.value.find(c => c.id === a.courseId)?.name || '',
         className: classes.value.find(c => c.id === a.classId)?.name || '',
         questionTitle: questions.value.find(q => q.id === a.questionId)?.title || ''
+=======
+        id: a.assignment_id || a.id,
+        title: a.title || '',
+        description: a.description || '',
+        classId: a.class_id || a.classId,
+        courseId: classes.value.find((c: any) => c.id === a.class_id)?.courseId || a.course_id || '',
+        courseName: a.class_name || classes.value.find((c: any) => c.id === a.class_id)?.name || '',
+        className: a.class_name || classes.value.find((c: any) => c.id === a.class_id)?.name || '',
+        questionId: a.question_id || '',
+        questionTitle: questions.value.find((q: any) => q.id === a.question_id)?.title || '',
+        deadline: formatDeadline(a.due_date || a.deadline || ''),
+        status: a.is_published ? 'published' : 'draft',
+        submitRate: 0,
+        passRate: 0,
+        totalStudents: 0,
+        submittedCount: 0,
+        passedCount: 0,
+        avgScore: 0
+>>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
       }))
     }
   } catch (error) {
@@ -656,11 +691,17 @@ const editDeadline = (assignment: any) => {
   deadlineDialogVisible.value = true
 }
 
-const confirmDeadlineChange = () => {
-  if (selectedAssignment.value && newDeadline.value) {
+const confirmDeadlineChange = async () => {
+  if (!selectedAssignment.value || !newDeadline.value) return
+  try {
+    await updateAssignment(String(selectedAssignment.value.id), { dueDate: newDeadline.value })
     selectedAssignment.value.deadline = newDeadline.value
     ElMessage.success('截止时间修改成功')
     deadlineDialogVisible.value = false
+  } catch (error: any) {
+    console.error('修改截止时间失败', error)
+    const detail = error?.response?.data?.detail
+    ElMessage.error(typeof detail === 'string' ? detail : '修改失败')
   }
 }
 
@@ -673,18 +714,30 @@ const exportGrades = (assignment: any) => {
   ElMessage.success(`正在导出"${assignment.title}"的成绩...`)
 }
 
-const deleteAssignment = (assignment: any) => {
-  ElMessageBox.confirm(`确定要删除作业"${assignment.title}"吗？`, '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    const index = assignments.value.findIndex(a => a.id === assignment.id)
-    if (index > -1) {
-      assignments.value.splice(index, 1)
+const deleteAssignment = async (assignment: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除作业"${assignment.title}"吗？此操作不可恢复，所有相关提交记录也将被删除。`,
+      '删除确认',
+      { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
+    )
+    const response = await deleteAssignmentApi(String(assignment.id))
+    if (response.code === 200) {
+      const index = assignments.value.findIndex(a => a.id === assignment.id)
+      if (index > -1) {
+        assignments.value.splice(index, 1)
+      }
+      ElMessage.success('作业已删除')
+    } else {
+      ElMessage.error(response.msg || '删除失败')
     }
-    ElMessage.success('删除成功')
-  })
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error('删除失败', error)
+      const detail = error?.response?.data?.detail
+      ElMessage.error(typeof detail === 'string' ? detail : '删除失败')
+    }
+  }
 }
 </script>
 
