@@ -23,19 +23,26 @@
       </div>
     </div>
     <div class="editor-body">
-      <textarea
-        v-model="code"
-        class="code-textarea"
-        :placeholder="placeholder"
-        @input="handleInput"
-      ></textarea>
-      <pre class="code-highlight" ref="highlightRef"></pre>
+      <div class="line-numbers" ref="lineNumbersRef">
+        <div v-for="n in lineCount" :key="n" class="line-number">{{ n }}</div>
+      </div>
+      <div class="code-area">
+        <textarea
+          v-model="code"
+          class="code-textarea"
+          :placeholder="placeholder"
+          @input="handleInput"
+          @scroll="handleScroll"
+          ref="textareaRef"
+        ></textarea>
+        <pre class="code-highlight" ref="highlightRef"></pre>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Delete } from '@element-plus/icons-vue'
 import hljs from 'highlight.js'
@@ -60,6 +67,13 @@ const emit = defineEmits<{
 const code = ref(props.modelValue)
 const selectedLanguage = ref(props.language)
 const highlightRef = ref<HTMLElement>()
+const lineNumbersRef = ref<HTMLElement>()
+const textareaRef = ref<HTMLTextAreaElement>()
+
+const lineCount = computed(() => {
+  const lines = code.value.split('\n')
+  return Math.max(lines.length, 10)
+})
 
 const languages = [
   { label: 'JavaScript', value: 'javascript' },
@@ -101,10 +115,26 @@ const handleLanguageChange = (lang: string) => {
   updateHighlight()
 }
 
+const handleScroll = () => {
+  if (textareaRef.value && highlightRef.value && lineNumbersRef.value) {
+    highlightRef.value.scrollTop = textareaRef.value.scrollTop
+    lineNumbersRef.value.scrollTop = textareaRef.value.scrollTop
+  }
+}
+
 const updateHighlight = () => {
   if (highlightRef.value) {
-    const highlighted = hljs.highlight(code.value, { language: selectedLanguage.value }).value
+    const escapedCode = code.value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+    
+    let highlighted = hljs.highlight(escapedCode, { language: selectedLanguage.value, ignoreIllegals: true }).value
     highlightRef.value.innerHTML = highlighted
+    
+    nextTick(() => {
+      handleScroll()
+    })
   }
 }
 
@@ -113,7 +143,6 @@ const formatCode = () => {
     if (selectedLanguage.value === 'javascript' || selectedLanguage.value === 'typescript' || selectedLanguage.value === 'json') {
       code.value = JSON.stringify(JSON.parse(code.value), null, 2)
     } else if (selectedLanguage.value === 'html' || selectedLanguage.value === 'css') {
-      // 简单的HTML/CSS格式化
       code.value = code.value.replace(/</g, '\n<').replace(/>/g, '>\n').replace(/\s+/g, ' ')
     }
     emit('update:modelValue', code.value)
@@ -136,6 +165,9 @@ const clearCode = () => {
   border: 1px solid var(--border-light);
   border-radius: var(--border-radius-md);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .editor-header {
@@ -158,8 +190,36 @@ const clearCode = () => {
 
 .editor-body {
   position: relative;
+  flex: 1;
   min-height: 300px;
   max-height: 600px;
+  overflow: hidden;
+  display: flex;
+}
+
+.line-numbers {
+  width: 50px;
+  padding: var(--spacing-md) 0;
+  background-color: var(--bg-tertiary);
+  border-right: 1px solid var(--border-light);
+  overflow: hidden;
+  user-select: none;
+}
+
+.line-number {
+  height: 21px;
+  line-height: 21px;
+  padding: 0 var(--spacing-sm);
+  font-family: var(--font-family-code);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.code-area {
+  flex: 1;
+  position: relative;
   overflow: auto;
 }
 
@@ -179,6 +239,9 @@ const clearCode = () => {
   background: transparent;
   resize: none;
   z-index: 1;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
 }
 
 .code-highlight {
@@ -188,18 +251,17 @@ const clearCode = () => {
   font-family: var(--font-family-code);
   font-size: var(--font-size-sm);
   line-height: 1.5;
-  white-space: pre-wrap;
-  word-wrap: break-word;
+  white-space: pre;
+  word-wrap: normal;
+  overflow-x: auto;
   z-index: 0;
   background-color: var(--bg-primary);
 }
 
-/* 确保textarea和highlight的样式一致 */
 .code-textarea, .code-highlight {
   tab-size: 2;
 }
 
-/* 自定义滚动条 */
 .editor-body::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -235,6 +297,22 @@ const clearCode = () => {
   
   .editor-body {
     min-height: 200px;
+  }
+  
+  .line-numbers {
+    width: 40px;
+  }
+  
+  .line-number {
+    font-size: 10px;
+    height: 19px;
+    line-height: 19px;
+  }
+}
+
+@media (max-width: 480px) {
+  .line-numbers {
+    width: 35px;
   }
 }
 </style>

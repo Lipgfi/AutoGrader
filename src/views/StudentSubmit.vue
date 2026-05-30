@@ -260,9 +260,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getB3Questions } from '../api/b3'
+import { getClasses } from '../api/class'
+import { getAssignments } from '../api/assignment'
 import { 
   Refresh,
   Trophy,
@@ -309,24 +312,62 @@ const submitRules = {
   ]
 }
 
-const courses = ref([
-  { courseId: 'C001', courseName: '数据结构与算法' },
-  { courseId: 'C002', courseName: '操作系统' },
-  { courseId: 'C003', courseName: '计算机网络' }
-])
+const courses = ref<any[]>([])
 
-const assignments = ref([
-  { assignmentId: 'A001', title: '第一次作业', courseId: 'C001' },
-  { assignmentId: 'A002', title: '第二次作业', courseId: 'C001' },
-  { assignmentId: 'A003', title: '第一次作业', courseId: 'C002' }
-])
+const assignments = ref<any[]>([])
 
-const questions = ref([
-  { questionId: 'Q001', assignmentId: 'A001' },
-  { questionId: 'Q002', assignmentId: 'A001' },
-  { questionId: 'Q003', assignmentId: 'A002' },
-  { questionId: 'Q004', assignmentId: 'A003' }
-])
+const questions = ref<any[]>([])
+
+const loadCourses = async () => {
+  try {
+    const response: any = await getClasses()
+    if (response.code === 200 && response.data) {
+      const classList = Array.isArray(response.data) ? response.data : response.data.data || []
+      courses.value = classList.map((cls: any) => ({
+        courseId: cls.class_id || cls.id,
+        courseName: cls.course_name || cls.courseName || cls.class_name || '未知课程'
+      }))
+    }
+  } catch (error) {
+    console.error('[StudentSubmit] 加载课程列表失败:', error)
+  }
+}
+
+const loadAssignments = async () => {
+  try {
+    const response: any = await getAssignments()
+    if (response.code === 200 && response.data) {
+      const assignmentList = Array.isArray(response.data) ? response.data : response.data.data || []
+      assignments.value = assignmentList.map((a: any) => ({
+        assignmentId: a.assignment_id || a.id,
+        title: a.title || '未知作业',
+        courseId: a.class_id || a.classId
+      }))
+    }
+  } catch (error) {
+    console.error('[StudentSubmit] 加载作业列表失败:', error)
+  }
+}
+
+const loadQuestions = async () => {
+  try {
+    const response: any = await getB3Questions()
+    if (response && Array.isArray(response)) {
+      questions.value = response.map((q: any, index: number) => ({
+        questionId: q.id,
+        assignmentId: `A00${Math.ceil((index + 1) / 2)}`
+      }))
+    }
+  } catch (error) {
+    console.error('[StudentSubmit] 加载题目列表失败:', error)
+  }
+}
+
+onMounted(() => {
+  loadCourses()
+  loadAssignments()
+  loadQuestions()
+})
 
 const submitting = ref(false)
 const evaluationDialogVisible = ref(false)

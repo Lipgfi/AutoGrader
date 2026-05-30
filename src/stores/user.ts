@@ -1,61 +1,66 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
+export interface UserInfo {
+  id?: string
+  userId?: string
+  username?: string
+  realName?: string
+  name?: string
+  role?: string
+  [key: string]: unknown
+}
+
 export const useUserStore = defineStore('user', () => {
-  // 状态
-  const token = ref<string>(localStorage.getItem('token') || '')
-  const userInfo = ref<any>(JSON.parse(localStorage.getItem('userInfo') || 'null'))
+  const token = ref<string>(sessionStorage.getItem('token') || '')
+  const userInfo = ref<UserInfo | null>((() => {
+    try {
+      const stored = sessionStorage.getItem('userInfo')
+      return stored ? JSON.parse(stored) : null
+    } catch {
+      return null
+    }
+  })())
   
-  // 计算属性
   const isLoggedIn = computed(() => !!token.value && !!userInfo.value)
   
-  // 获取用户角色
   const userRole = computed(() => userInfo.value?.role || '')
   
-  // 获取用户ID
   const userId = computed(() => userInfo.value?.id || userInfo.value?.userId || '')
   
-  // 获取真实姓名
   const realName = computed(() => userInfo.value?.realName || userInfo.value?.name || '')
   
-  // 获取用户名
   const username = computed(() => userInfo.value?.username || '')
   
-  // Actions
   function setToken(newToken: string) {
     token.value = newToken
     if (newToken) {
-      localStorage.setItem('token', newToken)
+      sessionStorage.setItem('token', newToken)
     } else {
-      localStorage.removeItem('token')
+      sessionStorage.removeItem('token')
     }
-    console.log('[UserStore] Token已设置:', !!newToken)
   }
   
-  function setUserInfo(info: any) {
+  function setUserInfo(info: UserInfo | null) {
     userInfo.value = info
     if (info) {
-      localStorage.setItem('userInfo', JSON.stringify(info))
+      sessionStorage.setItem('userInfo', JSON.stringify(info))
     } else {
-      localStorage.removeItem('userInfo')
+      sessionStorage.removeItem('userInfo')
     }
-    console.log('[UserStore] 用户信息已设置:', info?.username, info?.role)
   }
   
   function logout() {
     token.value = ''
     userInfo.value = null
-    localStorage.removeItem('token')
-    localStorage.removeItem('userInfo')
-    console.log('[UserStore] 用户已登出')
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('userInfo')
   }
   
-  // 更新用户信息（部分更新）
-  function updateUserInfo(partialInfo: any) {
+  function updateUserInfo(partialInfo: Partial<UserInfo>) {
     if (userInfo.value) {
       userInfo.value = { ...userInfo.value, ...partialInfo }
-      localStorage.setItem('userInfo', JSON.stringify(userInfo.value))
-      console.log('[UserStore] 用户信息已更新:', partialInfo)
+      sessionStorage.setItem('userInfo', JSON.stringify(userInfo.value))
     }
   }
   

@@ -34,10 +34,13 @@
         </el-form-item>
         
         <el-form-item label="班级">
-          <el-select v-model="filterForm.className" placeholder="请选择班级" clearable>
-            <el-option label="计算机2301班" value="计算机2301班" />
-            <el-option label="计算机2302班" value="计算机2302班" />
-            <el-option label="软件2301班" value="软件2301班" />
+          <el-select v-model="filterForm.classId" placeholder="请选择班级" clearable>
+            <el-option
+              v-for="cls in classList"
+              :key="cls.id"
+              :label="cls.name"
+              :value="cls.id"
+            />
           </el-select>
         </el-form-item>
         
@@ -137,8 +140,8 @@
         <div class="card-header">
           <span>成绩分布</span>
           <el-radio-group v-model="chartType" size="small">
-            <el-radio-button label="bar">柱状图</el-radio-button>
-            <el-radio-button label="pie">饼图</el-radio-button>
+            <el-radio-button value="bar">柱状图</el-radio-button>
+            <el-radio-button value="pie">饼图</el-radio-button>
           </el-radio-group>
         </div>
       </template>
@@ -387,33 +390,119 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { 
-  Download, 
-  Refresh, 
-  Search, 
-  RefreshLeft, 
-  User, 
-  DocumentChecked, 
-  TrendCharts, 
-  CircleCheckFilled, 
+import {
+  Download,
+  Refresh,
+  Search,
+  RefreshLeft,
+  User,
+  DocumentChecked,
+  TrendCharts,
+  CircleCheckFilled,
   Trophy,
   List,
   Grid
 } from '@element-plus/icons-vue'
+import { getClassGrades } from '../api/grade'
+import { getCourses } from '../api/course'
+import { getClasses } from '../api/class'
 
 const loading = ref(false)
 const viewMode = ref<'table' | 'card'>('table')
-const chartType = ref<'bar' | 'pie'>('bar')
-const searchKeyword = ref('')
-const detailDialogVisible = ref(false)
-const editDialogVisible = ref(false)
-const currentStudent = ref<any>(null)
+
+const courses = ref<any[]>([])
+const classList = ref<any[]>([])
+const gradeList = ref<any[]>([])
+
+const loadCourses = async () => {
+  try {
+    const response: any = await getCourses()
+    if (response.code === 200 && response.data) {
+      const courseData = Array.isArray(response.data) ? response.data : response.data.data || []
+      courses.value = courseData.map((c: any) => ({
+        id: c.course_id || c.id,
+        name: c.course_name || c.name
+      }))
+    }
+  } catch (error) {
+    console.error('[GradeManagement] 加载课程失败:', error)
+  }
+}
+
+const loadClasses = async () => {
+  try {
+    const response: any = await getClasses()
+    if (response.code === 200 && response.data) {
+      const classData = Array.isArray(response.data) ? response.data : response.data.data || []
+      classList.value = classData.map((c: any) => ({
+        id: c.class_id || c.id,
+        name: c.class_name || c.name,
+        courseId: c.course_id || c.courseId
+      }))
+    }
+  } catch (error) {
+    console.error('[GradeManagement] 加载班级失败:', error)
+  }
+}
+
+const loadGrades = async (classId?: number) => {
+  loading.value = true
+  try {
+    if (classId) {
+      const response: any = await getClassGrades(String(classId))
+      if (response.code === 200 && response.data) {
+        const gradeData = Array.isArray(response.data) ? response.data : []
+        gradeList.value = gradeData.map((g: any, index: number) => ({
+          id: g.user_id || index + 1,
+          rank: index + 1,
+          studentNo: g.student_id || '',
+          studentName: g.student_name || '未知学生',
+          className: classList.value.find(c => c.id === classId)?.name || '',
+          homeworkScore: g.assignments?.reduce((sum: number, a: any) => sum + (a.score || 0), 0) || 0,
+          examScore: 0,
+          totalScore: g.total_score || 0,
+          gradeLevel: getGradeLevel(g.total_score || 0),
+          submitTime: new Date().toLocaleDateString('zh-CN'),
+          homeworkDetails: g.assignments || []
+        }))
+      }
+    } else {
+      gradeList.value = []
+    }
+  } catch (error) {
+    console.error('[GradeManagement] 加载成绩失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const getGradeLevel = (score: number): string => {
+  if (score >= 90) return 'A'
+  if (score >= 80) return 'B'
+  if (score >= 70) return 'C'
+  if (score >= 60) return 'D'
+  return 'F'
+}
+
+const handleSearch = () => {
+  const classId = filterForm.classId
+  if (classId) {
+    loadGrades(classId)
+  } else {
+    ElMessage.warning('请选择班级')
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([loadCourses(), loadClasses()])
+})
 
 const filterForm = reactive({
   semester: '',
   courseId: null as number | null,
+  classId: null as number | null,
   className: '',
   studentName: '',
   scoreRange: [0, 100] as [number, number]
@@ -450,64 +539,6 @@ const pagination = reactive({
   total: 120
 })
 
-const gradeList = ref([
-  {
-    id: 1,
-    rank: 1,
-    studentNo: '2024001',
-    studentName: '张三',
-    className: '计算机2301班',
-    homeworkScore: 95,
-    examScore: 92,
-    totalScore: 93,
-    gradeLevel: 'A',
-    submitTime: '2024-01-20 15:30',
-    homeworkDetails: [
-      { homeworkName: '第一次作业', submitTime: '2024-01-15 14:30', score: 95, status: '已评分' },
-      { homeworkName: '第二次作业', submitTime: '2024-01-20 15:30', score: 92, status: '已评分' }
-    ]
-  },
-  {
-    id: 2,
-    rank: 2,
-    studentNo: '2024002',
-    studentName: '李四',
-    className: '计算机2301班',
-    homeworkScore: 88,
-    examScore: 85,
-    totalScore: 86,
-    gradeLevel: 'B',
-    submitTime: '2024-01-20 16:20',
-    homeworkDetails: []
-  },
-  {
-    id: 3,
-    rank: 3,
-    studentNo: '2024003',
-    studentName: '王五',
-    className: '计算机2302班',
-    homeworkScore: 75,
-    examScore: 70,
-    totalScore: 72,
-    gradeLevel: 'C',
-    submitTime: '2024-01-20 17:10',
-    homeworkDetails: []
-  },
-  {
-    id: 4,
-    rank: 4,
-    studentNo: '2024004',
-    studentName: '赵六',
-    className: '软件2301班',
-    homeworkScore: 55,
-    examScore: 50,
-    totalScore: 52,
-    gradeLevel: 'D',
-    submitTime: '2024-01-21 09:00',
-    homeworkDetails: []
-  }
-])
-
 const editForm = reactive({
   homeworkScore: 0,
   examScore: 0,
@@ -528,25 +559,17 @@ const getScoreClass = (score: number): string => {
   return 'fail'
 }
 
-const handleSearch = () => {
-  loading.value = true
-  setTimeout(() => {
-    loading.value = false
-    ElMessage.success('查询成功')
-  }, 500)
-}
-
 const resetFilter = () => {
   filterForm.semester = ''
   filterForm.courseId = null
-  filterForm.className = ''
+  filterForm.classId = null
   filterForm.studentName = ''
   filterForm.scoreRange = [0, 100]
+  gradeList.value = []
   ElMessage.success('筛选条件已重置')
 }
 
 const handleSortChange = ({ prop, order }: any) => {
-  console.log('排序:', prop, order)
 }
 
 const handleSizeChange = (size: number) => {

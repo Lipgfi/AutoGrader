@@ -14,7 +14,7 @@
       >
         <template v-for="item in menuItems" :key="item.path">
           <el-menu-item :index="item.path">
-            <el-icon :component="item.icon"></el-icon>
+            <el-icon><component :is="item.icon" /></el-icon>
             <span>{{ item.label }}</span>
           </el-menu-item>
         </template>

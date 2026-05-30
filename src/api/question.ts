@@ -17,7 +17,7 @@ export const createQuestion = async (data: any) => {
   const b4Response = await request.post('/questions', data)
   
   // 如果 B4 创建成功，同步创建到 B3
-  if (b4Response.status === 200 && b4Response.data) {
+  if (b4Response.code === 200 && b4Response.data) {
     try {
       const b3Payload = {
         id: data.id || b4Response.data.id,

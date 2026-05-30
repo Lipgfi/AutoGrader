@@ -215,7 +215,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { createTeacher } from '../../api/user'
+import { createTeacher, deleteUser as deleteUserApi } from '../../api/user'
 import { getUsers } from '../../api/user'
 import { Plus } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -348,9 +348,10 @@ const handleCreateUser = async () => {
       role: 'teacher'
     })
     
-    if (response.data?.code === 200 && response.data?.data) {
+    if (response.code === 200 && response.data) {
+      const created = response.data
       users.value.push({
-        id: response.data.id || Date.now(),
+        id: created.id || Date.now(),
         username: createForm.username,
         name: createForm.name,
         role: 'teacher',
@@ -394,8 +395,8 @@ const resetPassword = (user: any) => {
 const loadUsers = async () => {
   try {
     const response = await getUsers()
-    if (response.data?.code === 200 && response.data?.data) {
-      const userList = Array.isArray(response.data) ? response.data : response.data.data || []
+    if (response.code === 200 && response.data) {
+      const userList = Array.isArray(response.data) ? response.data : response.data.data || response.data.users || []
       users.value = userList.map((user: any) => ({
         id: user.id || user.userId,
         username: user.username || user.user_name,
@@ -422,17 +423,28 @@ onMounted(() => {
   loadUsers()
 })
 
-const deleteUser = (user: any) => {
+const deleteUser = async (user: any) => {
   ElMessageBox.confirm(`确定要删除用户 ${user.name} 吗？`, '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    const index = users.value.findIndex(u => u.id === user.id)
-    if (index > -1) {
-      users.value.splice(index, 1)
+  }).then(async () => {
+    try {
+      const response = await deleteUserApi(String(user.id))
+      
+      if (response.code === 200) {
+        const index = users.value.findIndex(u => u.id === user.id)
+        if (index > -1) {
+          users.value.splice(index, 1)
+        }
+        ElMessage.success('删除成功')
+      } else {
+        ElMessage.error('删除失败')
+      }
+    } catch (error: any) {
+      console.error('删除用户失败', error)
+      ElMessage.error('删除用户失败: ' + (error.message || error))
     }
-    ElMessage.success('删除成功')
   })
 }
 

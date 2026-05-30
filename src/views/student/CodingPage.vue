@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="coding-container">
     <div class="coding-header">
       <div class="header-left">
@@ -51,8 +51,8 @@
       <div class="problem-panel" :style="{ width: leftPanelWidth + '%' }">
         <div class="panel-tabs">
           <el-radio-group v-model="problemTab" size="small">
-            <el-radio-button label="description">题目描述</el-radio-button>
-            <el-radio-button label="testcases">测试用例</el-radio-button>
+            <el-radio-button value="description">题目描述</el-radio-button>
+            <el-radio-button value="testcases">测试用例</el-radio-button>
           </el-radio-group>
         </div>
         
@@ -114,7 +114,7 @@
             <div class="testcases-panel">
               <div class="testcase-tabs">
                 <el-radio-group v-model="selectedTestcase" size="small">
-                  <el-radio-button v-for="tc in testcases" :key="tc.id" :label="tc.id">
+                  <el-radio-button v-for="tc in testcases" :key="tc.id" :value="tc.id">
                     用例 {{ tc.id }}
                   </el-radio-button>
                 </el-radio-group>
@@ -316,14 +316,10 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getQuestionDetail } from '../../api/question'
-<<<<<<< HEAD
-import { evaluateSubmission, getB3QuestionCases } from '../../api/b3'
-=======
-import { evaluateSubmission, getB3QuestionDetail } from '../../api/b3'
+import { evaluateSubmission, getB3QuestionDetail, getB3Questions } from '../../api/b3'
 import { createSubmission, updateSubmissionResult } from '../../api/submission'
 import { getAssignments } from '../../api/assignment'
 import { request } from '../../api/interceptors'
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
 import { 
   ArrowLeft, 
   Clock, 
@@ -445,7 +441,7 @@ rl.on('line', (line) => {
         const [n, target] = input[0].split(' ').map(Number);
         const nums = input[1].split(' ').map(Number);
         const result = twoSum(nums, target);
-        console.log(result.join(' '));
+        process.stdout.write(result.join(' ') + '\n');
         rl.close();
     }
 });`
@@ -499,23 +495,29 @@ const saveDraft = () => {
 
 const loadQuestion = async () => {
   try {
-    const resolvedQId = route.params.id || 'Q001'
-    questionId.value = resolvedQId as string
-    console.log('[CodingPage] 请求题目详情:', questionId.value)
+    const rawId = route.params.id || 'Q001'
+    
+    let questionIdMap: Record<string, string> = {}
+    try {
+      const questionsResponse: any = await getB3Questions()
+      if (questionsResponse && Array.isArray(questionsResponse)) {
+        questionsResponse.forEach((q: any, index: number) => {
+          questionIdMap[`A00${index + 1}`] = q.id
+        })
+      }
+    } catch {
+      questionIdMap = { 'A001': 'Q01', 'A002': 'Q02', 'A003': 'Q03' }
+    }
+    
+    const resolvedQId = questionIdMap[rawId as string] || rawId as string
+    questionId.value = resolvedQId
 
     // 尝试从 B3 判题引擎获取题目（包含 test_cases）
     try {
-<<<<<<< HEAD
-      const b3Response = await getB3QuestionCases(resolvedQId as string)
-      // B3 拦截器返回 response.data，所以 b3Response 就是实际数据
-      if (b3Response && (b3Response.data || (b3Response as any).test_cases)) {
-        const questionData = b3Response.data || b3Response
-=======
       const b3Response: any = await getB3QuestionDetail(resolvedQId as string)
       // B3 拦截器返回 response.data，即题目详情对象
       if (b3Response && b3Response.id) {
         const q = b3Response
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
         currentProblem.value = {
           id: q.id,
           title: q.title || `题目 ${resolvedQId}`,
@@ -532,33 +534,23 @@ const loadQuestion = async () => {
             expectedOutput: tc.expected_output || '',
           })),
         }
-<<<<<<< HEAD
-=======
         if (q.language) {
           // B3 语言可能是 "shell"，映射到编辑器语言
           const langMap: Record<string, string> = { shell: 'python', python: 'python', java: 'java', cpp: 'cpp', c: 'cpp', javascript: 'javascript' }
           selectedLanguage.value = langMap[q.language] || q.language
         }
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
         testcases.value = currentProblem.value.testcases
         selectedTestcase.value = testcases.value[0]?.id || 1
-        console.log('[CodingPage] 从 B3 加载题目成功:', resolvedQId)
         return
       }
-    } catch (b3Error) {
-      console.warn('[CodingPage] B3 题目接口不可用，尝试 B4 接口:', b3Error)
+    } catch {
     }
 
     // 从 B4 主后端获取题目详情
-<<<<<<< HEAD
     const response = await getQuestionDetail(resolvedQId as string)
     
     // B4 使用统一拦截器，返回 {code, data, message}
-    if (response && (response as any).code === 200 && (response as any).data) {
-=======
-    const response: any = await getQuestionDetail(resolvedQId as string)
     if (response && response.code === 200 && response.data) {
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
       const question = response.data
       currentProblem.value = {
         id: question.question_id || question.id || resolvedQId,
@@ -578,18 +570,13 @@ const loadQuestion = async () => {
       }
       testcases.value = currentProblem.value.testcases
       selectedTestcase.value = testcases.value[0]?.id || 1
-      console.log('[CodingPage] 从 B4 加载题目成功:', currentProblem.value.title)
     } else {
       currentProblem.value = {
         id: resolvedQId as string,
         title: '题目加载失败',
         difficulty: '',
         tags: [],
-<<<<<<< HEAD
-        description: `未能加载题目 "${resolvedQId}"。请确保后端服务（B4 端口 8002）已启动。`,
-=======
         description: `未能加载题目 "${resolvedQId}"。请确保后端服务（B3 端口 8003 / B4 端口 8000）已启动。`,
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
         inputFormat: '',
         outputFormat: '',
         examples: [],
@@ -597,11 +584,7 @@ const loadQuestion = async () => {
         testcases: [],
       }
       testcases.value = []
-<<<<<<< HEAD
-      ElMessage.error('未找到该题目，请确保 B4 服务已启动（端口 8002）')
-=======
       ElMessage.error('未找到该题目，请确保后端服务已启动')
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
     }
   } catch (error: any) {
     console.error('[CodingPage] 加载题目失败:', error)
@@ -631,7 +614,7 @@ const submitCode = async () => {
   submitting.value = true
   
   try {
-    const result = await evaluateSubmission({
+    const b3Result = await evaluateSubmission({
       question_id: questionId.value,
       submitted_code: code.value,
       submission_id: Date.now().toString(),
@@ -639,16 +622,6 @@ const submitCode = async () => {
     })
     
     evaluationResult.value = {
-<<<<<<< HEAD
-      passed: (result as any).passed ?? ((result as any).score === 100),
-      score: (result as any).score || 0,
-      passedCases: (result as any).passedCases || 0,
-      totalCases: (result as any).totalCases || 0,
-      runtime: (result as any).runtime || 0,
-      memory: (result as any).memory || 0,
-      ranking: (result as any).ranking || 0,
-      testCases: (result as any).testCases || []
-=======
       passed: b3Result.passed_count === b3Result.total_count,
       score: b3Result.overall_score || 0,
       passedCases: b3Result.passed_count || 0,
@@ -665,16 +638,15 @@ const submitCode = async () => {
         error: cr.error || '',
         score: cr.score || 0,
       }))
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
     }
     
     submitHistory.value.unshift({
       id: Date.now().toString(),
       time: new Date().toLocaleString(),
       status: evaluationResult.value?.passed ? 'passed' : 'failed',
-      score: (result as any).score || 0,
+      score: evaluationResult.value?.score || 0,
       language: selectedLanguage.value,
-      runtime: (result as any).runtime || 0
+      runtime: evaluationResult.value?.runtime || 0
     })
     
     showResult.value = true

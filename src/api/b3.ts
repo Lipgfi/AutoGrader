@@ -12,7 +12,6 @@ const b3Instance = axios.create({
 // 请求拦截器
 b3Instance.interceptors.request.use(
   (config) => {
-    console.log('[B3 Request]', config.method?.toUpperCase(), config.url, config.data)
     return config
   },
   (error) => {
@@ -23,17 +22,9 @@ b3Instance.interceptors.request.use(
 // 响应拦截器
 b3Instance.interceptors.response.use(
   (response) => {
-    console.log('[B3 Response]', response.status, response.data)
     return response.data
   },
   (error) => {
-    console.error('[B3 Response Error]', error)
-    // 改为 console.warn，错误由调用方自行处理，避免弹窗干扰用户体验
-    if (error.response) {
-      console.warn('[B3] 评测服务返回错误:', error.response.status, error.response.data?.message || 'Unknown error')
-    } else {
-      console.warn('[B3] 无法连接评测服务，请检查网络')
-    }
     return Promise.reject(error)
   }
 )

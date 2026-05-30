@@ -39,10 +39,10 @@
       
       <div class="view-toggle">
         <el-radio-group v-model="viewMode" size="small">
-          <el-radio-button label="card">
+          <el-radio-button value="card">
             <el-icon><Grid /></el-icon>
           </el-radio-button>
-          <el-radio-button label="list">
+          <el-radio-button value="list">
             <el-icon><List /></el-icon>
           </el-radio-button>
         </el-radio-group>
@@ -172,7 +172,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { getCourses } from '../../api/course'
+import { getClasses } from '../../api/class'
+import { getAssignments } from '../../api/assignment'
 import { ElMessage } from 'element-plus'
 import { 
   Grid, 
@@ -194,63 +195,7 @@ const filterStatus = ref('')
 const viewMode = ref('card')
 const loading = ref(false)
 
-// Mock 数据作为后备
-const mockCourses = [
-  {
-    courseId: 'C001',
-    courseName: '数据结构与算法',
-    courseCode: 'CS101',
-    teacher: '张教授',
-    className: '计算机2401班',
-    semester: '2026春季学期',
-    color: '#165DFF',
-    totalAssignments: 8,
-    completedAssignments: 5,
-    pendingAssignments: 3,
-    progress: 62
-  },
-  {
-    courseId: 'C002',
-    courseName: '操作系统原理',
-    courseCode: 'CS201',
-    teacher: '李教授',
-    className: '计算机2401班',
-    semester: '2026春季学期',
-    color: '#00B42A',
-    totalAssignments: 6,
-    completedAssignments: 6,
-    pendingAssignments: 0,
-    progress: 100
-  },
-  {
-    courseId: 'C003',
-    courseName: '计算机网络',
-    courseCode: 'CS301',
-    teacher: '王教授',
-    className: '计算机2401班',
-    semester: '2026春季学期',
-    color: '#FF7D00',
-    totalAssignments: 5,
-    completedAssignments: 2,
-    pendingAssignments: 3,
-    progress: 40
-  },
-  {
-    courseId: 'C004',
-    courseName: '数据库系统',
-    courseCode: 'CS401',
-    teacher: '赵教授',
-    className: '计算机2401班',
-    semester: '2025秋季学期',
-    color: '#F53F3F',
-    totalAssignments: 10,
-    completedAssignments: 10,
-    pendingAssignments: 0,
-    progress: 100
-  }
-]
-
-const courses = ref(mockCourses)
+const courses = ref<any[]>([])
 
 const filteredCourses = computed(() => {
   let result = courses.value
@@ -296,29 +241,43 @@ const handleLogout = () => {
 const loadCourses = async () => {
   loading.value = true
   try {
-    const response = await getCourses()
-    if (response.code === 200 && response.data) {
-      const apiCourses = response.data.data || response.data
-      if (Array.isArray(apiCourses) && apiCourses.length > 0) {
-        courses.value = apiCourses.map((course: any) => ({
-          courseId: course.id || course.courseId,
-          courseName: course.name || course.courseName,
-          courseCode: course.code || course.courseCode,
-          teacher: course.teacher || course.instructor || '未知教师',
-          className: course.className || course.class_name || course.classes?.[0]?.name || '未知班级',
-          semester: course.semester || '未知学期',
-          color: course.color || '#165DFF',
-          totalAssignments: course.assignmentCount || course.total_assignments || 0,
-          completedAssignments: course.completedAssignments || course.completed_assignments || 0,
-          pendingAssignments: (course.assignmentCount || course.total_assignments || 0) - (course.completedAssignments || course.completed_assignments || 0),
-          progress: course.progress || 0
-        }))
+    const classesResponse = await getClasses()
+    if (classesResponse.code === 200 && classesResponse.data) {
+      const apiClasses = Array.isArray(classesResponse.data) ? classesResponse.data : classesResponse.data.data || []
+      
+      if (apiClasses.length > 0) {
+        const assignmentsResponse = await getAssignments()
+        const assignments = assignmentsResponse.code === 200 && assignmentsResponse.data 
+          ? (Array.isArray(assignmentsResponse.data) ? assignmentsResponse.data : assignmentsResponse.data.data || [])
+          : []
+        
+        const assignmentCounts: Record<string, number> = {}
+        assignments.forEach((a: any) => {
+          const classId = a.class_id || a.classId
+          assignmentCounts[classId] = (assignmentCounts[classId] || 0) + 1
+        })
+        
+        courses.value = apiClasses.map((cls: any) => {
+          const classId = cls.class_id || cls.id
+          const totalAssignments = assignmentCounts[classId] || 0
+          return {
+            courseId: classId,
+            courseName: cls.course_name || cls.courseName || '未知课程',
+            courseCode: cls.class_code || cls.classCode || '',
+            teacher: cls.teacher_name || cls.teacherName || '未知教师',
+            className: cls.class_name || cls.className || '未知班级',
+            semester: cls.semester || '未知学期',
+            color: '#165DFF',
+            totalAssignments: totalAssignments,
+            completedAssignments: 0,
+            pendingAssignments: totalAssignments,
+            progress: 0
+          }
+        })
       }
-      // 如果后端返回空数据，保持 mock 数据
     }
   } catch (error: any) {
-    console.warn('加载课程失败，使用本地数据:', error.message || error)
-    // 保持使用 mock 数据作为后备
+    console.warn('加载课程失败:', error.message || error)
   } finally {
     loading.value = false
   }

@@ -24,3 +24,8 @@ export const createTeacher = async (data: any) => {
 export const deactivateUser = async (userId: string) => {
   return await request.post(`/users/${userId}/deactivate`)
 }
+
+// 删除用户
+export const deleteUser = async (userId: string) => {
+  return await request.delete(`/users/${userId}`)
+}

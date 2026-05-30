@@ -89,7 +89,7 @@
           <el-checkbox v-model="loginForm.remember" class="remember-checkbox">
             <span class="remember-text">记住密码</span>
           </el-checkbox>
-          <el-link type="primary" :underline="false" class="forgot-link">
+          <el-link type="primary" :underline="'never'" class="forgot-link">
             忘记密码？
           </el-link>
         </div>
@@ -109,7 +109,7 @@
         
         <div class="register-link">
           <span class="register-text">还没有账号？</span>
-          <el-link type="primary" :underline="false" @click="$router.push('/register')">
+          <el-link type="primary" :underline="'never'" @click="$router.push('/register')">
             立即注册
           </el-link>
         </div>
@@ -159,18 +159,14 @@ const captchaImage = ref('')
 
 const refreshCaptcha = async () => {
   try {
-    console.log('[Captcha] 尝试从后端获取验证码...')
     const response = await getCaptcha()
     if (response.code === 200 && response.data) {
       captchaId.value = response.data.captcha_id
       captchaImage.value = response.data.captcha_image
-      console.log('[Captcha] 成功从后端获取验证码')
     } else {
-      console.warn('[Captcha] 后端返回异常，降级为本地生成:', response?.message || '未知错误')
       generateLocalCaptcha()
     }
-  } catch (error) {
-    console.warn('[Captcha] 后端服务不可用，降级为本地生成验证码:', error)
+  } catch {
     generateLocalCaptcha()
   }
 }
@@ -228,7 +224,6 @@ const generateLocalCaptcha = () => {
     
     // 将验证码存储在本地用于校验（仅降级方案使用）
     localStorage.setItem('local_captcha_' + captchaId.value, code)
-    console.log('[Captcha] 本地验证码生成成功:', code)
   }
 }
 
@@ -266,30 +261,17 @@ const handleLogin = async () => {
     
     loading.value = true
     
-    console.log('[Login] 发送登录请求:', {
-      username: loginForm.username,
-      password: loginForm.password,
-      role: loginForm.role,
-      captcha_id: captchaId.value,
-      captcha_code: loginForm.captcha
-    })
-    
     const response = await login({
       username: loginForm.username,
       password: loginForm.password,
-      role: loginForm.role,
-      captcha_id: captchaId.value,
-      captcha_code: loginForm.captcha
+      role: loginForm.role
     })
-    
-    console.log('[Login] 收到登录响应:', response)
     
     if (response.code === 200 && response.data) {
       const { token, user, role, userId } = response.data
       
       // 获取后端返回的实际角色
       const backendRole = user?.role || role
-      console.log('[Login] 后端返回的角色:', backendRole, '用户选择的角色:', loginForm.role)
       
       // 角色校验：后端返回的角色必须与用户选择的角色一致
       if (backendRole && backendRole !== loginForm.role) {
@@ -329,7 +311,6 @@ const handleLogin = async () => {
       
       // 根据返回的用户角色跳转，兼容两种响应格式
       const userRole = backendRole || loginForm.role
-      console.log('[Login] 用户角色:', userRole)
       
       let redirectPath = '/student/courses'
       switch (userRole) {
@@ -344,15 +325,12 @@ const handleLogin = async () => {
           break
       }
       
-      console.log('[Login] 跳转到:', redirectPath)
       router.push(redirectPath)
     } else {
       ElMessage.error(response.message || '登录失败')
       refreshCaptcha()
     }
   } catch (error: any) {
-    console.error('[Login] 登录失败:', error)
-    
     // 后端服务不可用时，显示错误信息
     if (error.message?.includes('Network Error') || 
         error.message?.includes('ERR_CONNECTION_REFUSED') ||

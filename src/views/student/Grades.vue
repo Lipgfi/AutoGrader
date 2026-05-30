@@ -252,9 +252,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { getB3Questions } from '../../api/b3'
+import { getMyGrades } from '../../api/grade'
+import { getClasses } from '../../api/class'
 import { 
   Download, 
   Document, 
@@ -273,107 +276,88 @@ const detailDialogVisible = ref(false)
 const selectedGrade = ref<any>(null)
 
 const stats = ref({
-  totalAssignments: 15,
-  completedAssignments: 12,
-  avgScore: 85.6,
-  ranking: 5
+  totalAssignments: 0,
+  completedAssignments: 0,
+  avgScore: 0,
+  ranking: 0
 })
 
-const courses = ref([
-  { id: 'C001', name: '数据结构与算法' },
-  { id: 'C002', name: '操作系统原理' },
-  { id: 'C003', name: '计算机网络' }
-])
+const courses = ref<any[]>([])
 
-const grades = ref([
-  {
-    id: 'G001',
-    questionId: 'Q001',
-    courseId: 'C001',
-    courseName: '数据结构与算法',
-    assignmentName: '第一次作业 - 数组与链表',
-    deadline: '2026-04-05 23:59',
-    status: 'completed',
-    score: 95,
-    totalScore: 100,
-    passRate: 100,
-    submitTime: '2026-04-03 15:30',
-    passedCases: 3,
-    totalCases: 3,
-    runtime: 32,
-    ranking: 2,
-    testCases: [
-      { passed: true, input: '[2,7,11,15], 9', expectedOutput: '[0,1]', actualOutput: '[0,1]', executionTime: 12 },
-      { passed: true, input: '[3,2,4], 6', expectedOutput: '[1,2]', actualOutput: '[1,2]', executionTime: 8 },
-      { passed: true, input: '[3,3], 6', expectedOutput: '[0,1]', actualOutput: '[0,1]', executionTime: 12 }
-    ]
-  },
-  {
-    id: 'G002',
-    questionId: 'Q002',
-    courseId: 'C001',
-    courseName: '数据结构与算法',
-    assignmentName: '第二次作业 - 栈与队列',
-    deadline: '2026-04-10 23:59',
-    status: 'completed',
-    score: 88,
-    totalScore: 100,
-    passRate: 75,
-    submitTime: '2026-04-08 20:15',
-    passedCases: 3,
-    totalCases: 4,
-    runtime: 45,
-    ranking: 8,
-    testCases: [
-      { passed: true, input: '["2","1","+","3","*"]', expectedOutput: '9', actualOutput: '9', executionTime: 15 },
-      { passed: true, input: '["4","13","5","/","+"]', expectedOutput: '6', actualOutput: '6', executionTime: 12 },
-      { passed: true, input: '["10","6","9","3","+","-11","*","/","*","17","+","5","+"]', expectedOutput: '22', actualOutput: '22', executionTime: 18 },
-      { passed: false, input: '["3","2","1","-","*","5","*"]', expectedOutput: '-15', actualOutput: '15', executionTime: 10 }
-    ]
-  },
-  {
-    id: 'G003',
-    questionId: 'Q003',
-    courseId: 'C002',
-    courseName: '操作系统原理',
-    assignmentName: '进程调度模拟',
-    deadline: '2026-04-15 23:59',
-    status: 'pending',
-    score: null,
-    totalScore: 100,
-    passRate: null,
-    submitTime: '-',
-    passedCases: 0,
-    totalCases: 0,
-    runtime: 0,
-    ranking: 0,
-    testCases: []
-  },
-  {
-    id: 'G004',
-    questionId: 'Q004',
-    courseId: 'C003',
-    courseName: '计算机网络',
-    assignmentName: 'TCP连接模拟',
-    deadline: '2026-04-12 23:59',
-    status: 'completed',
-    score: 72,
-    totalScore: 100,
-    passRate: 60,
-    submitTime: '2026-04-11 18:45',
-    passedCases: 3,
-    totalCases: 5,
-    runtime: 68,
-    ranking: 15,
-    testCases: [
-      { passed: true, input: 'SYN', expectedOutput: 'SYN-ACK', actualOutput: 'SYN-ACK', executionTime: 20 },
-      { passed: true, input: 'ACK', expectedOutput: 'ESTABLISHED', actualOutput: 'ESTABLISHED', executionTime: 15 },
-      { passed: true, input: 'FIN', expectedOutput: 'FIN-ACK', actualOutput: 'FIN-ACK', executionTime: 18 },
-      { passed: false, input: 'RST', expectedOutput: 'CLOSED', actualOutput: 'ERROR', executionTime: 10 },
-      { passed: false, input: 'PSH', expectedOutput: 'DATA_TRANSFER', actualOutput: 'UNKNOWN', executionTime: 5 }
-    ]
+const questions = ref<any[]>([])
+
+const grades = ref<any[]>([])
+
+const loadQuestions = async () => {
+  try {
+    const response: any = await getB3Questions()
+    if (response && Array.isArray(response)) {
+      questions.value = response.map((q: any) => ({
+        id: q.id,
+        title: q.title
+      }))
+    }
+  } catch (error) {
+    console.error('[Grades] 加载题目列表失败:', error)
   }
-])
+}
+
+const loadCourses = async () => {
+  try {
+    const response: any = await getClasses()
+    if (response.code === 200 && response.data) {
+      const classList = Array.isArray(response.data) ? response.data : response.data.data || []
+      courses.value = classList.map((cls: any) => ({
+        id: cls.class_id || cls.id,
+        name: cls.course_name || cls.courseName || cls.class_name || '未知课程'
+      }))
+    }
+  } catch (error) {
+    console.error('[Grades] 加载课程列表失败:', error)
+  }
+}
+
+const loadGrades = async () => {
+  try {
+    const response: any = await getMyGrades()
+    if (response.code === 200 && response.data) {
+      const gradeList = Array.isArray(response.data) ? response.data : response.data.data || []
+      grades.value = gradeList.map((g: any) => ({
+        id: g.assignment_id || g.id,
+        questionId: g.question_id || '',
+        courseId: g.class_id || '',
+        courseName: g.course_name || g.class_name || '未知课程',
+        assignmentName: g.assignment_title || g.title || '未知作业',
+        deadline: g.due_date || g.deadline || '',
+        status: g.status === 'COMPLETED' ? 'completed' : 'pending',
+        score: g.score || 0,
+        totalScore: 100,
+        passRate: g.pass_rate || 0,
+        submitTime: g.submitted_at || g.submit_time || '-',
+        passedCases: g.passed_cases || 0,
+        totalCases: g.total_cases || 0,
+        runtime: g.runtime || 0,
+        ranking: g.ranking || 0,
+        testCases: g.test_cases || []
+      }))
+      
+      const completed = grades.value.filter(g => g.status === 'completed')
+      stats.value.totalAssignments = grades.value.length
+      stats.value.completedAssignments = completed.length
+      stats.value.avgScore = completed.length > 0 
+        ? Math.round(completed.reduce((sum, g) => sum + (g.score || 0), 0) / completed.length * 10) / 10
+        : 0
+    }
+  } catch (error) {
+    console.error('[Grades] 加载成绩列表失败:', error)
+  }
+}
+
+onMounted(() => {
+  loadQuestions()
+  loadCourses()
+  loadGrades()
+})
 
 const filteredGrades = computed(() => {
   let result = grades.value

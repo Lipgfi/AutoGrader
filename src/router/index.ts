@@ -159,15 +159,12 @@ router.beforeEach((to, _from, next) => {
   const requiresAuth = to.meta.requiresAuth !== false // 默认需要登录
   const isLoggedIn = userStore.isLoggedIn
   
-  console.log('[Router] 路由跳转:', to.path, '需要登录:', requiresAuth, '已登录:', isLoggedIn)
-  
   // 不需要登录的页面
   if (!requiresAuth) {
     // 如果已登录且去登录/注册页面，重定向到对应首页
     if (isLoggedIn && (to.path === '/login' || to.path === '/register')) {
       const userRole = userStore.userInfo?.role || 'student'
       const redirectPath = getHomePathByRole(userRole)
-      console.log('[Router] 已登录用户访问登录页，重定向到:', redirectPath)
       next(redirectPath)
       return
     }
@@ -178,7 +175,6 @@ router.beforeEach((to, _from, next) => {
   // 需要登录的页面
   if (!isLoggedIn) {
     ElMessage.warning('请先登录')
-    console.log('[Router] 未登录，重定向到登录页')
     next('/login')
     return
   }
@@ -187,12 +183,9 @@ router.beforeEach((to, _from, next) => {
   const requiredRole = to.meta.role
   const userRole = userStore.userInfo?.role
   
-  console.log('[Router] 角色检查 - 需要:', requiredRole, '用户:', userRole)
-  
   if (requiredRole && userRole !== requiredRole) {
     ElMessage.error('您没有访问该页面的权限')
     const redirectPath = getHomePathByRole(userRole)
-    console.log('[Router] 角色不匹配，重定向到:', redirectPath)
     next(redirectPath)
     return
   }

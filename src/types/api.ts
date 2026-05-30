@@ -35,8 +35,8 @@ export interface UserInfo {
 
 // 课程相关
 export interface CourseCreateRequest {
-  name: string
-  code: string
+  courseName: string
+  courseCode: string
   semester: string
   description?: string
 }

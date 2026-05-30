@@ -1,4 +1,4 @@
-
+import { evaluateSubmission, type B3EvaluateResponse, type B3CaseResult } from '../api/b3'
 
 export interface TestCase {
   caseId: string
@@ -41,220 +41,6 @@ export interface QuestionInfo {
   timeLimit: number
   memoryLimit: number
   testCases: TestCase[]
-}
-
-const questionDatabase: Record<string, QuestionInfo> = {
-  'Q001': {
-    questionId: 'Q001',
-    title: '数组求和',
-    description: '给定一个整数数组，计算数组中所有元素的和。',
-    difficulty: 'Easy',
-    timeLimit: 1000,
-    memoryLimit: 256,
-    testCases: [
-      {
-        caseId: 'case_01',
-        description: '基本正整数',
-        passed: true,
-        actualOutput: '15',
-        expectedOutput: '15',
-        executionTimeMs: 12.5
-      },
-      {
-        caseId: 'case_02',
-        description: '包含负数',
-        passed: true,
-        actualOutput: '12',
-        expectedOutput: '12',
-        executionTimeMs: 10.2
-      },
-      {
-        caseId: 'case_03',
-        description: '单个元素',
-        passed: true,
-        actualOutput: '5',
-        expectedOutput: '5',
-        executionTimeMs: 8.3
-      },
-      {
-        caseId: 'case_04',
-        description: '空数组',
-        passed: true,
-        actualOutput: '0',
-        expectedOutput: '0',
-        executionTimeMs: 6.7
-      }
-    ]
-  },
-  'Q002': {
-    questionId: 'Q002',
-    title: '判断奇偶数',
-    description: '给定一个整数，判断它是奇数还是偶数。',
-    difficulty: 'Easy',
-    timeLimit: 1000,
-    memoryLimit: 256,
-    testCases: [
-      {
-        caseId: 'case_01',
-        description: '偶数',
-        passed: true,
-        actualOutput: 'even',
-        expectedOutput: 'even',
-        executionTimeMs: 9.8
-      },
-      {
-        caseId: 'case_02',
-        description: '奇数',
-        passed: true,
-        actualOutput: 'odd',
-        expectedOutput: 'odd',
-        executionTimeMs: 8.5
-      },
-      {
-        caseId: 'case_03',
-        description: '零',
-        passed: true,
-        actualOutput: 'even',
-        expectedOutput: 'even',
-        executionTimeMs: 7.2
-      },
-      {
-        caseId: 'case_04',
-        description: '负数偶数',
-        passed: true,
-        actualOutput: 'even',
-        expectedOutput: 'even',
-        executionTimeMs: 8.9
-      }
-    ]
-  },
-  'Q003': {
-    questionId: 'Q003',
-    title: '斐波那契数列',
-    description: '计算斐波那契数列的第n项。',
-    difficulty: 'Medium',
-    timeLimit: 2000,
-    memoryLimit: 512,
-    testCases: [
-      {
-        caseId: 'case_01',
-        description: 'n=0',
-        passed: true,
-        actualOutput: '0',
-        expectedOutput: '0',
-        executionTimeMs: 8.2
-      },
-      {
-        caseId: 'case_02',
-        description: 'n=1',
-        passed: true,
-        actualOutput: '1',
-        expectedOutput: '1',
-        executionTimeMs: 7.8
-      },
-      {
-        caseId: 'case_03',
-        description: 'n=10',
-        passed: true,
-        actualOutput: '55',
-        expectedOutput: '55',
-        executionTimeMs: 15.3
-      },
-      {
-        caseId: 'case_04',
-        description: 'n=20',
-        passed: true,
-        actualOutput: '6765',
-        expectedOutput: '6765',
-        executionTimeMs: 45.2
-      }
-    ]
-  },
-  'Q004': {
-    questionId: 'Q004',
-    title: '链表反转',
-    description: '反转一个单链表。',
-    difficulty: 'Medium',
-    timeLimit: 2000,
-    memoryLimit: 512,
-    testCases: [
-      {
-        caseId: 'case_01',
-        description: '空链表',
-        passed: true,
-        actualOutput: '[]',
-        expectedOutput: '[]',
-        executionTimeMs: 6.5
-      },
-      {
-        caseId: 'case_02',
-        description: '单节点',
-        passed: true,
-        actualOutput: '[5]',
-        expectedOutput: '[5]',
-        executionTimeMs: 8.7
-      },
-      {
-        caseId: 'case_03',
-        description: '多节点',
-        passed: true,
-        actualOutput: '[3,2,1]',
-        expectedOutput: '[3,2,1]',
-        executionTimeMs: 12.4
-      },
-      {
-        caseId: 'case_04',
-        description: '长链表',
-        passed: true,
-        actualOutput: '[10,9,8,7,6,5,4,3,2,1]',
-        expectedOutput: '[10,9,8,7,6,5,4,3,2,1]',
-        executionTimeMs: 25.8
-      }
-    ]
-  },
-  'Q101': {
-    questionId: 'Q101',
-    title: '链表基础',
-    description: '实现链表的基本操作。',
-    difficulty: 'Medium',
-    timeLimit: 2000,
-    memoryLimit: 512,
-    testCases: [
-      {
-        caseId: 'case_01',
-        description: '空链表',
-        passed: true,
-        actualOutput: '[]',
-        expectedOutput: '[]',
-        executionTimeMs: 8.6
-      },
-      {
-        caseId: 'case_02',
-        description: '单节点',
-        passed: true,
-        actualOutput: '[5]',
-        expectedOutput: '[5]',
-        executionTimeMs: 8.9
-      },
-      {
-        caseId: 'case_03',
-        description: '多节点遍历',
-        passed: true,
-        actualOutput: '[1,2,3]',
-        expectedOutput: '[1,2,3]',
-        executionTimeMs: 9.1
-      },
-      {
-        caseId: 'case_04',
-        description: '非法输入保护',
-        passed: false,
-        actualOutput: '',
-        expectedOutput: 'ValueError',
-        error: '运行时异常',
-        executionTimeMs: 7.7
-      }
-    ]
-  }
 }
 
 const submissionHistory: Record<string, EvaluationResult[]> = {}
@@ -314,24 +100,24 @@ function analyzeCodeQuality(code: string, language: string): StaticIssue[] {
   return issues
 }
 
-function simulateCodeExecution(code: string, question: QuestionInfo, language: string): TestCase[] {
-  const results: TestCase[] = []
-  const codeQuality = analyzeCodeQuality(code, language)
-  const hasErrors = codeQuality.some(issue => issue.type === 'error')
-  
-  question.testCases.forEach((testCase) => {
-    const passed = !hasErrors && Math.random() > 0.2
-    
-    results.push({
-      ...testCase,
-      passed: passed,
-      actualOutput: passed ? testCase.expectedOutput : '错误输出',
-      error: !passed ? (hasErrors ? '语法错误' : '逻辑错误') : undefined,
-      executionTimeMs: testCase.executionTimeMs + (Math.random() * 5)
-    })
-  })
-  
-  return results
+function convertB3CaseResult(caseResult: B3CaseResult): TestCase {
+  return {
+    caseId: caseResult.case_id,
+    description: caseResult.description,
+    passed: caseResult.passed,
+    actualOutput: caseResult.actual_output || '',
+    expectedOutput: caseResult.expected_output || '',
+    error: caseResult.error || undefined,
+    executionTimeMs: caseResult.execution_time_ms
+  }
+}
+
+function convertB3StaticIssues(b3Issues: { code: string; message: string }[]): StaticIssue[] {
+  return b3Issues.map(issue => ({
+    type: issue.code.startsWith('E') ? 'error' as const : 
+          issue.code.startsWith('W') ? 'warning' as const : 'info' as const,
+    message: issue.message
+  }))
 }
 
 function calculateRanking(score: number): EvaluationResult['ranking'] {
@@ -353,59 +139,98 @@ export async function evaluateCode(
   questionId: string,
   language: string
 ): Promise<EvaluationResult> {
-  const question = questionDatabase[questionId]
-  
-  if (!question) {
-    throw new Error(`题目 ${questionId} 不存在`)
-  }
-  
   const submissionId = generateSubmissionId()
   
-  const caseResults = simulateCodeExecution(code, question, language)
-  const passedCount = caseResults.filter(c => c.passed).length
-  const totalCount = caseResults.length
-  const overallScore = (passedCount / totalCount) * 100
-  
-  const staticIssues = analyzeCodeQuality(code, language)
-  
-  let overallComment = ''
-  if (overallScore === 100) {
-    overallComment = '🎉 完美！所有测试用例都通过了！'
-  } else if (overallScore >= 80) {
-    overallComment = '👍 很好！大部分测试用例都通过了。'
-  } else if (overallScore >= 60) {
-    overallComment = '😊 还可以，但还有改进空间。'
-  } else if (overallScore >= 40) {
-    overallComment = '😟 需要努力，代码存在一些问题。'
-  } else {
-    overallComment = '😞 继续加油！建议仔细检查代码逻辑。'
+  try {
+    const response: B3EvaluateResponse = await evaluateSubmission({
+      question_id: questionId,
+      submitted_code: code,
+      submission_id: submissionId,
+      language: language
+    })
+    
+    const caseResults: TestCase[] = response.case_results.map(convertB3CaseResult)
+    const staticIssues = convertB3StaticIssues(response.static_issues || [])
+    
+    let overallComment = response.overall_comment || ''
+    if (!overallComment) {
+      if (response.overall_score === 100) {
+        overallComment = '🎉 完美！所有测试用例都通过了！'
+      } else if (response.overall_score >= 80) {
+        overallComment = '👍 很好！大部分测试用例都通过了。'
+      } else if (response.overall_score >= 60) {
+        overallComment = '😊 还可以，但还有改进空间。'
+      } else if (response.overall_score >= 40) {
+        overallComment = '😟 需要努力，代码存在一些问题。'
+      } else {
+        overallComment = '😞 继续加油！建议仔细检查代码逻辑。'
+      }
+    }
+    
+    const ranking = calculateRanking(response.overall_score)
+    
+    const result: EvaluationResult = {
+      submissionId: response.submission_id,
+      questionId: response.question_id,
+      status: 'COMPLETED',
+      overallScore: response.overall_score,
+      passedCount: response.passed_count,
+      totalCount: response.total_count,
+      overallComment,
+      staticIssues: [...staticIssues, ...analyzeCodeQuality(code, language)],
+      caseResults,
+      ranking
+    }
+    
+    if (!submissionHistory[questionId]) {
+      submissionHistory[questionId] = []
+    }
+    submissionHistory[questionId].push(result)
+    
+    return result
+    
+  } catch (error: any) {
+    console.error('[CodeEvaluation] B3服务调用失败:', error)
+    
+    const staticIssues = analyzeCodeQuality(code, language)
+    
+    const result: EvaluationResult = {
+      submissionId,
+      questionId,
+      status: 'ERROR',
+      overallScore: 0,
+      passedCount: 0,
+      totalCount: 1,
+      overallComment: '❌ 评测服务不可用，请稍后重试',
+      staticIssues: [
+        {
+          type: 'error',
+          message: '无法连接到判题服务，请检查B3服务是否已启动'
+        },
+        ...staticIssues
+      ],
+      caseResults: [{
+        caseId: 'error_case',
+        description: '服务错误',
+        passed: false,
+        actualOutput: '',
+        expectedOutput: '',
+        error: error.message || '连接失败',
+        executionTimeMs: 0
+      }]
+    }
+    
+    if (!submissionHistory[questionId]) {
+      submissionHistory[questionId] = []
+    }
+    submissionHistory[questionId].push(result)
+    
+    return result
   }
-  
-  const ranking = calculateRanking(overallScore)
-  
-  const result: EvaluationResult = {
-    submissionId,
-    questionId,
-    status: 'COMPLETED',
-    overallScore,
-    passedCount,
-    totalCount,
-    overallComment,
-    staticIssues,
-    caseResults,
-    ranking
-  }
-  
-  if (!submissionHistory[questionId]) {
-    submissionHistory[questionId] = []
-  }
-  submissionHistory[questionId].push(result)
-  
-  return result
 }
 
 export function getQuestionInfo(questionId: string): QuestionInfo | undefined {
-  return questionDatabase[questionId]
+  return undefined
 }
 
 export function getSubmissionHistory(questionId: string): EvaluationResult[] {
@@ -435,7 +260,7 @@ export function getStatistics(questionId: string): {
   totalSubmissions: number
   averageScore: number
   passRate: number
-  scoreDistribution: { range: string, count: number }[]
+  scoreDistribution: { range: string; count: number }[]
 } {
   const history = getSubmissionHistory(questionId)
   

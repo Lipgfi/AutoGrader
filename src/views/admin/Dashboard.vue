@@ -107,8 +107,8 @@
             <div class="card-header">
               <span>提交趋势</span>
               <el-radio-group v-model="chartPeriod" size="small">
-                <el-radio-button label="week">近一周</el-radio-button>
-                <el-radio-button label="month">近一月</el-radio-button>
+                <el-radio-button value="week">近一周</el-radio-button>
+                <el-radio-button value="month">近一月</el-radio-button>
               </el-radio-group>
             </div>
           </template>
@@ -361,24 +361,25 @@ const loadStats = async () => {
   setLoading(true)
   try {
     const response = await getSystemStats()
-    if (response.data && response.data.code === 200) {
+    if (response.code === 200 && response.data) {
+      const payload = response.data
       stats.value = {
-        totalUsers: response.data.totalUsers || 0,
-        totalCourses: response.data.totalCourses || 0,
-        totalSubmissions: response.data.totalSubmissions || 0,
-        avgScore: response.data.avgScore || 0
+        totalUsers: payload.totalUsers || payload.total_users || 0,
+        totalCourses: payload.totalCourses || payload.total_courses || 0,
+        totalSubmissions: payload.totalSubmissions || payload.total_submissions || 0,
+        avgScore: payload.avgScore || payload.avg_score || 0
       }
       // 图表数据
-      if (response.data.chartData) {
-        chartData.value = response.data.chartData
+      if (payload.chartData || payload.chart_data) {
+        chartData.value = payload.chartData || payload.chart_data
       }
       // 最近提交
-      if (response.data.recentSubmissions) {
-        recentSubmissions.value = response.data.recentSubmissions
+      if (payload.recentSubmissions || payload.recent_submissions) {
+        recentSubmissions.value = payload.recentSubmissions || payload.recent_submissions
       }
       // 系统活动
-      if (response.data.systemActivities) {
-        systemActivities.value = response.data.systemActivities
+      if (payload.systemActivities || payload.system_activities) {
+        systemActivities.value = payload.systemActivities || payload.system_activities
       }
     }
   } catch (error) {
@@ -397,10 +398,11 @@ const loadProjectData = async () => {
   try {
     const { request } = await import('../../api/interceptors')
     const response = await request.get('/system/project/data')
-    if (response.data && response.data.code === 200) {
-      weeklyWorkItems.value = response.data.weeklyWorkItems || []
-      problemsAndSolutions.value = response.data.problemsAndSolutions || []
-      suggestions.value = response.data.suggestions || []
+    if (response.code === 200 && response.data) {
+      const payload = response.data
+      weeklyWorkItems.value = payload.weeklyWorkItems || payload.weekly_work_items || []
+      problemsAndSolutions.value = payload.problemsAndSolutions || payload.problems_and_solutions || []
+      suggestions.value = payload.suggestions || []
     }
   } catch (error) {
     console.warn('[Dashboard] 加载项目数据失败，使用默认数据:', error)

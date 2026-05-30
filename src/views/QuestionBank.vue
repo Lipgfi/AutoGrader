@@ -719,7 +719,7 @@ const deleteQuestion = async (row: any) => {
   }).then(async () => {
     try {
       const response = await deleteQuestionApi(row.id)
-      if (response.data && response.data.code === 200) {
+      if (response.code === 200) {
         const index = questionList.value.findIndex(q => q.id === row.id)
         if (index > -1) {
           questionList.value.splice(index, 1)
@@ -840,9 +840,6 @@ const buildPayload = () => {
     is_public: true,
     score_weight: 1.0,
   }))
-  console.log('[QuestionBank] buildPayload testCases:', questionForm.testCases)
-  console.log('[QuestionBank] buildPayload filtered:', filtered)
-  console.log('[QuestionBank] buildPayload test_cases:', test_cases)
   return {
     title: questionForm.title,
     description: questionForm.content,
@@ -863,26 +860,8 @@ const saveQuestion = async () => {
       const payload = buildPayload()
       try {
         if (isEdit.value) {
-<<<<<<< HEAD
-          const response = await updateQuestion(currentQuestion.value.id, {
-            title: questionForm.title,
-            content: questionForm.content,
-            difficulty: questionForm.difficulty,
-            score: questionForm.score,
-            status: questionForm.status,
-            tags: questionForm.tags,
-            answer: questionForm.answer,
-            languages: questionForm.languages,
-            testCases: questionForm.testCases,
-            options: questionForm.options,
-            correctOption: questionForm.correctOption,
-            fillBlanks: questionForm.fillBlanks
-          })
-          if (response.data && response.data.code === 200) {
-=======
           const response = await updateQuestion(currentQuestion.value.id, payload)
           if (response.code === 200) {
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
             Object.assign(currentQuestion.value, {
               title: questionForm.title,
               content: questionForm.content,
@@ -897,27 +876,9 @@ const saveQuestion = async () => {
             ElMessage.error(response.msg || '修改失败')
           }
         } else {
-<<<<<<< HEAD
-          const response = await createQuestion({
-            title: questionForm.title,
-            content: questionForm.content,
-            difficulty: questionForm.difficulty,
-            score: questionForm.score,
-            status: questionForm.status,
-            tags: questionForm.tags,
-            answer: questionForm.answer,
-            languages: questionForm.languages,
-            testCases: questionForm.testCases,
-            options: questionForm.options,
-            correctOption: questionForm.correctOption,
-            fillBlanks: questionForm.fillBlanks
-          })
-          if (response.data && response.data.code === 200 && response.data.data) {
-=======
           const response = await createQuestion(payload)
           if (response.code === 200 && response.data) {
             const qid = response.data.question_id || response.data.id
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
             questionList.value.unshift({
               id: qid,
               title: questionForm.title,
@@ -1014,8 +975,6 @@ const createHomeworkFromQuestion = (question: any) => {
   ElMessage.success(`已基于题目"${question.title}"创建作业`)
   viewDialogVisible.value = false
 }
-<<<<<<< HEAD
-=======
 
 const loadQuestions = async () => {
   loading.value = true
@@ -1070,7 +1029,6 @@ const loadQuestions = async () => {
 onMounted(() => {
   loadQuestions()
 })
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
 </script>
 
 <style scoped>

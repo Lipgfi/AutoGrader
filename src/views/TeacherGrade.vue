@@ -308,11 +308,8 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/atom-one-dark.css'
-<<<<<<< HEAD
-=======
 import { getAssignments } from '../api/assignment'
 import { getAssignmentSubmissions, overrideSubmissionScore } from '../api/submission'
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -536,7 +533,7 @@ const saveDraft = () => {
   }, 500)
 }
 
-const submitGrade = () => {
+const submitGrade = async () => {
   if (totalScore.value === 0) {
     ElMessage.warning('请完成评分')
     return
@@ -544,17 +541,31 @@ const submitGrade = () => {
   
   submitting.value = true
   
-  setTimeout(() => {
-    submitting.value = false
-    successDialogVisible.value = true
-    
-    gradeHistory.value.unshift({
-      id: gradeHistory.value.length + 1,
-      score: totalScore.value,
-      remark: gradeForm.remark || '无备注',
-      time: new Date().toLocaleString('zh-CN')
+  try {
+    const response = await overrideSubmissionScore(currentStudent.value.submissionId, {
+      override_score: totalScore.value,
+      override_reason: gradeForm.remark || '教师评分'
     })
-  }, 1000)
+    
+    if (response.code === 200) {
+      submitting.value = false
+      successDialogVisible.value = true
+      
+      gradeHistory.value.unshift({
+        id: gradeHistory.value.length + 1,
+        score: totalScore.value,
+        remark: gradeForm.remark || '无备注',
+        time: new Date().toLocaleString('zh-CN')
+      })
+    } else {
+      submitting.value = false
+      ElMessage.error('评分提交失败')
+    }
+  } catch (error: any) {
+    submitting.value = false
+    console.error('提交评分失败', error)
+    ElMessage.error('提交评分失败: ' + (error.message || error))
+  }
 }
 
 const goBack = () => {

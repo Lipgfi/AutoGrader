@@ -335,14 +335,11 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-<<<<<<< HEAD
-import { getAssignments, createAssignment } from '../../api/assignment'
-=======
 import { request } from '../../api/interceptors'
-import { getAssignments, createAssignment, updateAssignment, deleteAssignment as deleteAssignmentApi } from '../../api/assignment'
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
+import { getAssignments, createAssignment, updateAssignment, deleteAssignment as deleteAssignmentApi, publishAssignment as publishAssignmentApi } from '../../api/assignment'
 import { getCourses } from '../../api/course'
 import { getQuestions } from '../../api/question'
+import { getB3Questions } from '../../api/b3'
 import { getClasses } from '../../api/class'
 import { Plus, Lock } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -389,87 +386,24 @@ const classes = ref([
   { id: 'CL003', name: '计算机2401班', courseId: 'C002' }
 ])
 
-const questions = ref([
-  { id: 'Q001', title: '两数之和' },
-  { id: 'Q002', title: '反转链表' },
-  { id: 'Q003', title: '有效的括号' },
-  { id: 'Q004', title: '二叉树遍历' }
-])
+const questions = ref<any[]>([])
 
-const assignments = ref([
-  {
-    id: 'A001',
-    title: '第一次作业 - 数组与链表',
-    courseId: 'C001',
-    courseName: '数据结构与算法',
-    classId: 'CL001',
-    className: '计算机2401班',
-    questionId: 'Q001',
-    questionTitle: '两数之和',
-    deadline: '2026-04-05 23:59',
-    status: 'published',
-    submitRate: 85,
-    passRate: 72,
-    totalStudents: 45,
-    submittedCount: 38,
-    passedCount: 32,
-    avgScore: 82.5
-  },
-  {
-    id: 'A002',
-    title: '第二次作业 - 栈与队列',
-    courseId: 'C001',
-    courseName: '数据结构与算法',
-    classId: 'CL001',
-    className: '计算机2401班',
-    questionId: 'Q003',
-    questionTitle: '有效的括号',
-    deadline: '2026-04-10 23:59',
-    status: 'published',
-    submitRate: 60,
-    passRate: 55,
-    totalStudents: 45,
-    submittedCount: 27,
-    passedCount: 25,
-    avgScore: 75.8
-  },
-  {
-    id: 'A003',
-    title: '第三次作业 - 树与图',
-    courseId: 'C001',
-    courseName: '数据结构与算法',
-    classId: 'CL001',
-    className: '计算机2401班',
-    questionId: 'Q004',
-    questionTitle: '二叉树遍历',
-    deadline: '2026-04-15 23:59',
-    status: 'draft',
-    submitRate: 0,
-    passRate: 0,
-    totalStudents: 45,
-    submittedCount: 0,
-    passedCount: 0,
-    avgScore: 0
-  },
-  {
-    id: 'A004',
-    title: '进程调度模拟',
-    courseId: 'C002',
-    courseName: '操作系统原理',
-    classId: 'CL003',
-    className: '计算机2401班',
-    questionId: 'Q002',
-    questionTitle: '反转链表',
-    deadline: '2026-03-20 23:59',
-    status: 'ended',
-    submitRate: 92,
-    passRate: 80,
-    totalStudents: 45,
-    submittedCount: 41,
-    passedCount: 36,
-    avgScore: 78.2
+const loadQuestions = async () => {
+  try {
+    const response: any = await getB3Questions()
+    if (response && Array.isArray(response)) {
+      questions.value = response.map((q: any) => ({
+        id: q.id,
+        title: q.title
+      }))
+    }
+  } catch (error) {
+    console.error('[AssignmentManagement] 加载题目列表失败:', error)
+    questions.value = []
   }
-])
+}
+
+const assignments = ref<any[]>([])
 
 const filteredClasses = computed(() => {
   if (!assignmentForm.courseId) return []
@@ -558,14 +492,15 @@ const saveDraft = async () => {
     // 调用API创建作业
     const response = await createAssignment({
       title: assignmentForm.title,
-      courseId: assignmentForm.courseId,
-      classId: assignmentForm.classId,
-      questionId: assignmentForm.questionId,
-      deadline: assignmentForm.deadline,
-      description: assignmentForm.description
+      classId: Number(assignmentForm.classId),
+      question_id: assignmentForm.questionId,
+      dueDate: new Date(assignmentForm.deadline).toISOString(),
+      description: assignmentForm.description,
+      isPublished: false,
+      allowResubmit: true
     })
     
-    if (response.data && response.data.code === 200 && response.data.data) {
+    if (response.code === 200 && response.data) {
       ElMessage.success('草稿保存成功')
       createDialogVisible.value = false
       // 刷新作业列表
@@ -585,41 +520,51 @@ const loadData = async () => {
     // 加载课程
     const coursesResponse = await getCourses()
     if (coursesResponse.code === 200 && coursesResponse.data) {
-      courses.value = coursesResponse.data.data.map((c: any) => ({
-        id: c.id,
-        name: c.name
+      const courseList = Array.isArray(coursesResponse.data) ? coursesResponse.data : coursesResponse.data.data || []
+      courses.value = courseList.map((c: any) => ({
+        id: c.course_id || c.id,
+        name: c.course_name || c.name
       }))
     }
     
     // 加载班级
     const classesResponse = await getClasses()
-    if (classesResponse.data && classesResponse.data.code === 200 && classesResponse.data.data) {
-      classes.value = classesResponse.data.map((c: any) => ({
-        id: c.id,
-        name: c.name,
-        courseId: c.courseId
+    if (classesResponse.code === 200 && classesResponse.data) {
+      const classList = Array.isArray(classesResponse.data) ? classesResponse.data : classesResponse.data.data || []
+      classes.value = classList.map((c: any) => ({
+        id: c.class_id || c.id,
+        name: c.class_name || c.name,
+        courseId: c.course_id || c.courseId
       }))
     }
     
-    // 加载题目
-    const questionsResponse = await getQuestions()
-    if (questionsResponse.data && questionsResponse.data.code === 200 && questionsResponse.data.data) {
-      questions.value = questionsResponse.data.map((q: any) => ({
-        id: q.id,
-        title: q.title
-      }))
+    // 加载题目（从B3判题引擎获取）
+    try {
+      const b3QuestionsResponse: any = await getB3Questions()
+      if (b3QuestionsResponse && Array.isArray(b3QuestionsResponse)) {
+        questions.value = b3QuestionsResponse.map((q: any) => ({
+          id: q.id,
+          title: q.title
+        }))
+      }
+    } catch (error) {
+      console.warn('[AssignmentManagement] 从B3加载题目失败，尝试从B4加载:', error)
+      const questionsResponse = await getQuestions()
+      if (questionsResponse.code === 200 && questionsResponse.data) {
+        const questionList = Array.isArray(questionsResponse.data) ? questionsResponse.data : questionsResponse.data.data || questionsResponse.data.questions || []
+        questions.value = questionList.map((q: any) => ({
+          id: q.id,
+          title: q.title
+        }))
+      }
     }
     
     // 加载作业
     const assignmentsResponse = await getAssignments()
-    if (assignmentsResponse.data && assignmentsResponse.data.code === 200 && assignmentsResponse.data.data) {
-      assignments.value = assignmentsResponse.data.map((a: any) => ({
+    if (assignmentsResponse.code === 200 && assignmentsResponse.data) {
+      const assignmentList = Array.isArray(assignmentsResponse.data) ? assignmentsResponse.data : assignmentsResponse.data.data || []
+      assignments.value = assignmentList.map((a: any) => ({
         ...a,
-<<<<<<< HEAD
-        courseName: courses.value.find(c => c.id === a.courseId)?.name || '',
-        className: classes.value.find(c => c.id === a.classId)?.name || '',
-        questionTitle: questions.value.find(q => q.id === a.questionId)?.title || ''
-=======
         id: a.assignment_id || a.id,
         title: a.title || '',
         description: a.description || '',
@@ -637,7 +582,6 @@ const loadData = async () => {
         submittedCount: 0,
         passedCount: 0,
         avgScore: 0
->>>>>>> 54605c4fa61a34a2ded489f5d54865c199d919ef
       }))
     }
   } catch (error) {
@@ -674,14 +618,24 @@ const saveAssignment = async () => {
   }
 }
 
-const publishAssignment = (assignment: any) => {
+const publishAssignment = async (assignment: any) => {
   ElMessageBox.confirm('确定要发布此作业吗？发布后题目将不可修改。', '发布确认', {
     confirmButtonText: '确定发布',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    assignment.status = 'published'
-    ElMessage.success('作业发布成功')
+  }).then(async () => {
+    try {
+      const response = await publishAssignmentApi(String(assignment.id))
+      if (response.code === 200) {
+        assignment.status = 'published'
+        ElMessage.success('作业发布成功')
+      } else {
+        ElMessage.error('发布失败')
+      }
+    } catch (error: any) {
+      console.error('发布作业失败', error)
+      ElMessage.error('发布失败: ' + (error.message || error))
+    }
   })
 }
 

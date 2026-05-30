@@ -228,8 +228,11 @@
         :rules="classRules"
         label-width="100px"
       >
-        <el-form-item label="班级名称" prop="name">
-          <el-input v-model="classForm.name" placeholder="请输入班级名称" />
+        <el-form-item label="班级名称" prop="className">
+          <el-input v-model="classForm.className" placeholder="请输入班级名称" />
+        </el-form-item>
+        <el-form-item label="班级编号" prop="classCode">
+          <el-input v-model="classForm.classCode" placeholder="请输入班级编号" />
         </el-form-item>
         <el-form-item label="所属课程" prop="courseId">
           <el-select v-model="classForm.courseId" placeholder="请选择课程" style="width: 100%" :disabled="!!editingClass">
@@ -239,12 +242,6 @@
               :label="course.name"
               :value="course.id"
             />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="学期" prop="semester">
-          <el-select v-model="classForm.semester" placeholder="请选择学期" style="width: 100%">
-            <el-option label="2026春季学期" value="2026春季学期" />
-            <el-option label="2025秋季学期" value="2025秋季学期" />
           </el-select>
         </el-form-item>
       </el-form>
@@ -347,8 +344,9 @@
 import { ref, computed, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { getCourses, createCourse } from '../../api/course'
-import { importStudents as importClassStudents } from '../../api/class'
+import { getCourses, createCourse, updateCourse } from '../../api/course'
+import { getClasses, createClass, importStudents as importClassStudents, deleteClass as deleteClassApi } from '../../api/class'
+import { getAssignments } from '../../api/assignment'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, 
@@ -393,9 +391,9 @@ const courseForm = reactive({
 })
 
 const classForm = reactive({
-  name: '',
-  courseId: '',
-  semester: '2026春季学期'
+  className: '',
+  classCode: '',
+  courseId: ''
 })
 
 const courseRules: FormRules = {
@@ -405,69 +403,90 @@ const courseRules: FormRules = {
 }
 
 const classRules: FormRules = {
-  name: [{ required: true, message: '请输入班级名称', trigger: 'blur' }],
-  courseId: [{ required: true, message: '请选择课程', trigger: 'change' }],
-  semester: [{ required: true, message: '请选择学期', trigger: 'change' }]
+  className: [{ required: true, message: '请输入班级名称', trigger: 'blur' }],
+  classCode: [{ required: true, message: '请输入班级编号', trigger: 'blur' }],
+  courseId: [{ required: true, message: '请选择课程', trigger: 'change' }]
 }
 
-const courses = ref([
-  {
-    id: 'C001',
-    name: '数据结构与算法',
-    code: 'CS101',
-    semester: '2026春季学期',
-    color: '#165DFF',
-    status: 'active',
-    classCount: 2,
-    assignmentCount: 8,
-    classes: [
-      { id: 'CL001', name: '计算机2401班' },
-      { id: 'CL002', name: '计算机2402班' }
-    ]
-  },
-  {
-    id: 'C002',
-    name: '操作系统原理',
-    code: 'CS201',
-    semester: '2026春季学期',
-    color: '#00B42A',
-    status: 'active',
-    classCount: 1,
-    assignmentCount: 6,
-    classes: [
-      { id: 'CL003', name: '计算机2401班' }
-    ]
-  },
-  {
-    id: 'C003',
-    name: '计算机网络',
-    code: 'CS301',
-    semester: '2025秋季学期',
-    color: '#FF7D00',
-    status: 'ended',
-    classCount: 3,
-    assignmentCount: 10,
-    classes: [
-      { id: 'CL004', name: '计算机2301班' },
-      { id: 'CL005', name: '计算机2302班' },
-      { id: 'CL006', name: '计算机2303班' }
-    ]
+const courses = ref<any[]>([])
+
+const classes = ref<any[]>([])
+
+const students = ref<any[]>([])
+
+const loadCourses = async () => {
+  try {
+    const response: any = await getCourses()
+    if (response.code === 200 && response.data) {
+      const courseList = Array.isArray(response.data) ? response.data : response.data.data || []
+      courses.value = courseList.map((c: any) => ({
+        id: c.course_id || c.id,
+        name: c.course_name || c.name || '未知课程',
+        code: c.course_code || c.code || '',
+        semester: c.semester || '未知学期',
+        color: '#165DFF',
+        status: c.status || 'active',
+        classCount: c.class_count || 0,
+        assignmentCount: c.assignment_count || 0,
+        classes: []
+      }))
+    }
+  } catch (error) {
+    console.error('[CourseManagement] 加载课程列表失败:', error)
   }
-])
+}
 
-const classes = ref([
-  { id: 'CL001', name: '计算机2401班', courseId: 'C001', courseName: '数据结构与算法', studentCount: 45, semester: '2026春季学期', createTime: '2026-02-20' },
-  { id: 'CL002', name: '计算机2402班', courseId: 'C001', courseName: '数据结构与算法', studentCount: 42, semester: '2026春季学期', createTime: '2026-02-20' },
-  { id: 'CL003', name: '计算机2401班', courseId: 'C002', courseName: '操作系统原理', studentCount: 45, semester: '2026春季学期', createTime: '2026-02-25' }
-])
+const loadClasses = async () => {
+  try {
+    const response: any = await getClasses()
+    if (response.code === 200 && response.data) {
+      const classList = Array.isArray(response.data) ? response.data : response.data.data || []
+      classes.value = classList.map((cls: any) => ({
+        id: cls.class_id || cls.id,
+        name: cls.class_name || cls.name || '未知班级',
+        courseId: cls.course_id || '',
+        courseName: cls.course_name || '未知课程',
+        studentCount: cls.student_count || 0,
+        semester: cls.semester || '未知学期',
+        createTime: cls.created_at || cls.createTime || ''
+      }))
+    }
+  } catch (error) {
+    console.error('[CourseManagement] 加载班级列表失败:', error)
+  }
+}
 
-const students = ref([
-  { studentId: '20240001', name: '张三', email: 'zhangsan@example.com', phone: '13800138001', avgScore: 92.5 },
-  { studentId: '20240002', name: '李四', email: 'lisi@example.com', phone: '13800138002', avgScore: 85.0 },
-  { studentId: '20240003', name: '王五', email: 'wangwu@example.com', phone: '13800138003', avgScore: 78.5 },
-  { studentId: '20240004', name: '赵六', email: 'zhaoliu@example.com', phone: '13800138004', avgScore: 90.0 },
-  { studentId: '20240005', name: '钱七', email: 'qianqi@example.com', phone: '13800138005', avgScore: 95.5 }
-])
+const loadStudents = async () => {
+  try {
+    const response: any = await getClasses()
+    if (response.code === 200 && response.data) {
+      const classList = Array.isArray(response.data) ? response.data : response.data.data || []
+      const allStudents: any[] = []
+      for (const cls of classList) {
+        if (cls.students && Array.isArray(cls.students)) {
+          cls.students.forEach((s: any) => {
+            allStudents.push({
+              studentId: s.student_id || s.studentId,
+              name: s.real_name || s.name || '未知',
+              email: s.email || '',
+              phone: s.phone || '',
+              avgScore: s.avg_score || 0
+            })
+          })
+        }
+      }
+      students.value = allStudents
+    }
+  } catch (error) {
+    console.error('[CourseManagement] 加载学生列表失败:', error)
+  }
+}
+
+onMounted(() => {
+  loadCourses()
+  loadClasses()
+  loadStudents()
+})
 
 const filteredCourses = computed(() => {
   let result = courses.value
@@ -570,13 +589,23 @@ const saveCourse = async () => {
     await courseFormRef.value.validate()
     
     if (editingCourse.value) {
-      Object.assign(editingCourse.value, courseForm)
-      ElMessage.success('课程更新成功')
+      // 调用API更新课程
+      const response = await updateCourse(editingCourse.value.id, {
+        courseName: courseForm.name,
+        description: courseForm.description
+      })
+      
+      if (response.code === 200) {
+        Object.assign(editingCourse.value, courseForm)
+        ElMessage.success('课程更新成功')
+      } else {
+        ElMessage.error('课程更新失败')
+      }
     } else {
       // 调用API创建课程
       const response = await createCourse({
-        name: courseForm.name,
-        code: courseForm.code,
+        courseName: courseForm.name,
+        courseCode: courseForm.code,
         semester: courseForm.semester,
         description: courseForm.description
       })
@@ -597,29 +626,6 @@ const saveCourse = async () => {
   }
 }
 
-// 加载课程列表
-const loadCourses = async () => {
-  try {
-    const response = await getCourses()
-    if (response.code === 200 && response.data) {
-      courses.value = (response.data.data || []).map((course: any) => ({
-        ...course,
-        color: course.color || '#165DFF',
-        status: course.status || 'active',
-        classCount: course.classCount || 0,
-        assignmentCount: course.assignmentCount || 0,
-        classes: course.classes || []
-      }))
-    }
-  } catch (error) {
-    console.error('加载课程失败', error)
-  }
-}
-
-onMounted(() => {
-  loadCourses()
-})
-
 const manageClasses = (course: any) => {
   selectedCourseId.value = course.id
   activeTab.value = 'classes'
@@ -632,9 +638,9 @@ const handleCourseSelect = () => {
 const showCreateClassDialog = () => {
   editingClass.value = null
   Object.assign(classForm, {
-    name: '',
-    courseId: selectedCourseId.value,
-    semester: '2026春季学期'
+    className: '',
+    classCode: '',
+    courseId: selectedCourseId.value
   })
   classDialogVisible.value = true
 }
@@ -642,9 +648,9 @@ const showCreateClassDialog = () => {
 const editClass = (cls: any) => {
   editingClass.value = cls
   Object.assign(classForm, {
-    name: cls.name,
-    courseId: cls.courseId,
-    semester: cls.semester
+    className: cls.name,
+    classCode: cls.classCode || '',
+    courseId: cls.courseId
   })
   classDialogVisible.value = true
 }
@@ -659,57 +665,79 @@ const saveClass = async () => {
     
     if (editingClass.value) {
       Object.assign(editingClass.value, {
-        name: classForm.name,
-        semester: classForm.semester
+        name: classForm.className,
+        classCode: classForm.classCode
       })
       ElMessage.success('班级更新成功')
     } else {
-      const newClass = {
-        id: `CL${Date.now()}`,
-        name: classForm.name,
+      const response = await createClass({
         courseId: classForm.courseId,
-        courseName: course?.name || '',
-        studentCount: 0,
-        semester: classForm.semester,
-        createTime: new Date().toLocaleDateString('zh-CN')
-      }
-      classes.value.push(newClass)
+        className: classForm.className,
+        classCode: classForm.classCode
+      })
       
-      if (course) {
-        course.classes.push({ id: newClass.id, name: newClass.name })
-        course.classCount++
+      if (response.code === 200 && response.data) {
+        const newClass = {
+          id: response.data.class_id,
+          name: response.data.class_name,
+          classCode: response.data.class_code,
+          courseId: response.data.course_id,
+          courseName: course?.name || '',
+          studentCount: 0,
+          createTime: new Date().toLocaleDateString('zh-CN')
+        }
+        classes.value.push(newClass)
+        
+        if (course) {
+          course.classes.push({ id: newClass.id, name: newClass.name })
+          course.classCount++
+        }
+        
+        ElMessage.success('班级创建成功')
+      } else {
+        ElMessage.error('班级创建失败')
       }
-      
-      ElMessage.success('班级创建成功')
     }
     
     classDialogVisible.value = false
-  } catch (error) {
-    console.error('表单校验失败', error)
+  } catch (error: any) {
+    console.error('保存班级失败', error)
+    ElMessage.error('保存班级失败: ' + (error.message || error))
   }
 }
 
-const deleteClass = (cls: any) => {
+const deleteClass = async (cls: any) => {
   ElMessageBox.confirm(`确定要删除班级"${cls.name}"吗？`, '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    const index = classes.value.findIndex(c => c.id === cls.id)
-    if (index > -1) {
-      classes.value.splice(index, 1)
-    }
-    
-    const course = courses.value.find(c => c.id === cls.courseId)
-    if (course) {
-      const classIndex = course.classes.findIndex(c => c.id === cls.id)
-      if (classIndex > -1) {
-        course.classes.splice(classIndex, 1)
-        course.classCount--
+  }).then(async () => {
+    try {
+      const response = await deleteClassApi(cls.id)
+      
+      if (response.code === 200) {
+        const index = classes.value.findIndex(c => c.id === cls.id)
+        if (index > -1) {
+          classes.value.splice(index, 1)
+        }
+        
+        const course = courses.value.find(c => c.id === cls.courseId)
+        if (course) {
+          const classIndex = course.classes.findIndex(c => c.id === cls.id)
+          if (classIndex > -1) {
+            course.classes.splice(classIndex, 1)
+            course.classCount--
+          }
+        }
+        
+        ElMessage.success('删除成功')
+      } else {
+        ElMessage.error('删除失败')
       }
+    } catch (error: any) {
+      console.error('删除班级失败', error)
+      ElMessage.error('删除班级失败: ' + (error.message || error))
     }
-    
-    ElMessage.success('删除成功')
   })
 }
 
@@ -826,14 +854,14 @@ const confirmImport = async () => {
       }))
     })
     
-    if (response.data && response.data.code === 200) {
+    if (response.code === 200) {
       const importedCount = response.data?.count || previewData.value.length
       selectedClass.value.studentCount += importedCount
       ElMessage.success(`成功导入 ${importedCount} 名学生`)
       // 刷新班级列表
       await loadClasses()
     } else {
-      ElMessage.error(response.data?.message || '导入失败')
+      ElMessage.error(response.message || '导入失败')
     }
   } catch (error) {
     console.error('导入学生失败:', error)
@@ -841,27 +869,6 @@ const confirmImport = async () => {
   } finally {
     importDialogVisible.value = false
   }
-}
-
-const loadClasses = async () => {
-  try {
-    const response = await getClasses()
-    if (response.data && response.data.code === 200) {
-      classes.value = response.data.map((cls: any) => ({
-        ...cls,
-        courseName: cls.course_name || '',
-        studentCount: cls.student_count || 0,
-        createTime: cls.create_time || ''
-      }))
-    }
-  } catch (error) {
-    console.error('加载班级列表失败:', error)
-  }
-}
-
-const getClasses = async (params?: any) => {
-  const { request } = await import('../../api/interceptors')
-  return await request.get('/classes', params)
 }
 
 const viewStudents = (cls: any) => {
